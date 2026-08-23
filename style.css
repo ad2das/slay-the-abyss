@@ -1,24 +1,19 @@
 /* ==========================================================================
-   SUNNYVALE MEADOW - MASTER STYLESHEET
-   Studio Ghibli / Animal Crossing Inspired Cozy Mobile Aesthetic
+   SUNNYVALE 3D - LUXURY VISION-OS GLASSMORPHIC STYLESHEET
+   Cinematic WebGL Viewport & Premium Frosted Glass UI
    ========================================================================== */
 
 :root {
-  --bg-meadow: #6ee7b7;
-  --color-warm-sun: #fef08a;
-  --color-gold: #f59e0b;
-  --color-terracotta: #b45309;
-  --color-energy-green: #22c55e;
-  --color-water-blue: #38bdf8;
+  --glass-bg: rgba(255, 255, 255, 0.12);
+  --glass-border: rgba(255, 255, 255, 0.35);
+  --glass-glow: rgba(251, 191, 36, 0.4);
   
-  --panel-bg: rgba(255, 253, 245, 0.94);
-  --panel-border: #fcd34d;
-  --text-main: #334155;
-  --text-muted: #64748b;
+  --gold-primary: #f59e0b;
+  --gold-bright: #fef08a;
+  --gold-gradient: linear-gradient(135deg, #fbbf24, #d97706);
 
-  --font-cute: 'Gaegu', cursive, sans-serif;
-  --font-hud: 'Quicksand', 'Noto Sans KR', sans-serif;
-  --font-body: 'Noto Sans KR', sans-serif;
+  --font-luxury: 'Cinzel', serif;
+  --font-hud: 'Plus Jakarta Sans', 'Noto Sans KR', sans-serif;
 }
 
 * {
@@ -27,48 +22,36 @@
   padding: 0;
   user-select: none;
   -webkit-user-select: none;
-  -webkit-touch-callout: none;
 }
 
 html, body {
   width: 100vw;
   height: 100vh;
   overflow: hidden;
-  background-color: #52b788;
+  background-color: #0c121e;
   font-family: var(--font-hud);
-  color: var(--text-main);
+  color: #fff;
   touch-action: none;
 }
 
-#app-container {
+#game-app {
   position: relative;
   width: 100vw;
   height: 100vh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
   overflow: hidden;
 }
 
-/* Farm Canvas */
-#farmCanvas {
+/* 3D WebGL Canvas */
+#webgl-container {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  display: block;
-  image-rendering: pixelated;
-  image-rendering: crisp-edges;
-  cursor: grab;
+  z-index: 1;
 }
 
-#farmCanvas:active {
-  cursor: grabbing;
-}
-
-/* Atmosphere & Day/Night Overlays */
-#ambient-overlay {
+#cinematic-vignette {
   position: absolute;
   top: 0;
   left: 0;
@@ -76,308 +59,259 @@ html, body {
   height: 100%;
   pointer-events: none;
   z-index: 5;
-  transition: background-color 2s ease;
+  background: radial-gradient(circle at 50% 50%, transparent 55%, rgba(12, 18, 30, 0.6) 100%);
+  box-shadow: inset 0 0 100px rgba(0,0,0,0.5);
 }
 
-#fireflies-overlay {
+/* ==========================================================================
+   TOP VISION-OS GLASS HUD
+   ========================================================================== */
+#vision-top-hud {
+  position: absolute;
+  top: env(safe-area-inset-top, 16px);
+  left: 0;
+  width: 100%;
+  padding: 0 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 20;
+  pointer-events: none;
+}
+
+.glass-pill {
+  pointer-events: auto;
+  background: var(--glass-bg);
+  border: 1.5px solid var(--glass-border);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 40px;
+  padding: 8px 18px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255,255,255,0.4);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.left-pill {
+  gap: 10px;
+}
+
+.sun-orb {
+  font-size: 22px;
+}
+
+.time-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.season-badge {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--gold-bright);
+}
+
+.clock-badge {
+  font-size: 15px;
+  font-weight: 800;
+  color: #fff;
+}
+
+.center-pill .farm-title {
+  font-family: var(--font-luxury);
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: 3px;
+  background: linear-gradient(180deg, #fff, #cbd5e1);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 15px rgba(255,255,255,0.3);
+}
+
+.gold-box {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 16px;
+  font-weight: 900;
+  color: var(--gold-bright);
+}
+
+.energy-box {
+  position: relative;
+  width: 100px;
+  height: 22px;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 20px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.energy-fill {
   position: absolute;
   top: 0;
   left: 0;
-  width: 100%;
   height: 100%;
-  pointer-events: none;
-  z-index: 6;
+  background: linear-gradient(90deg, #10b981, #34d399);
+  transition: width 0.3s ease-out;
 }
 
-/* ==========================================================================
-   TOP HUD: TIME, DATE, WEATHER, STATS
-   ========================================================================== */
-#top-hud {
+.energy-text {
+  position: relative;
+  font-size: 10px;
+  font-weight: 800;
+  z-index: 2;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+}
+
+/* Camera Hint */
+#camera-hint {
   position: absolute;
-  top: env(safe-area-inset-top, 12px);
-  left: 0;
-  width: 100%;
-  padding: 10px 16px;
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  z-index: 20;
-  pointer-events: none;
-}
-
-.hud-card {
-  pointer-events: auto;
-  background: var(--panel-bg);
-  border: 2px solid var(--panel-border);
-  border-radius: 18px;
-  padding: 8px 14px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-  backdrop-filter: blur(12px);
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.time-weather-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.weather-badge {
-  font-size: 18px;
-}
-
-.season-text {
-  font-weight: 700;
-  font-size: 13px;
-  color: var(--color-terracotta);
-}
-
-.clock-display {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-#hud-clock-text {
-  font-weight: 800;
-  font-size: 16px;
-  color: #1e293b;
-}
-
-.time-progress-bar {
-  width: 100px;
-  height: 5px;
-  background: #e2e8f0;
-  border-radius: 3px;
-  overflow: hidden;
-}
-
-.time-progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #f59e0b, #ef4444);
-  transition: width 0.3s linear;
-}
-
-.stats-card {
-  align-items: flex-end;
-}
-
-.money-badge {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: #fef08a;
-  border: 1.5px solid #f59e0b;
-  padding: 3px 10px;
-  border-radius: 12px;
-  font-weight: 800;
-  font-size: 15px;
-  color: #78350f;
-  box-shadow: 0 2px 6px rgba(245, 158, 11, 0.2);
-}
-
-.energy-bar-wrapper {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  width: 120px;
-}
-
-.energy-label-row {
-  display: flex;
-  justify-content: space-between;
+  top: 75px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+  padding: 5px 16px;
+  border-radius: 20px;
   font-size: 11px;
   font-weight: 700;
-  color: var(--text-muted);
-}
-
-.energy-bar-bg {
-  height: 8px;
-  background: #e2e8f0;
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.energy-bar-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #10b981, #22c55e);
-  transition: width 0.2s ease-out;
+  color: #cbd5e1;
+  z-index: 15;
+  pointer-events: none;
 }
 
 /* ==========================================================================
-   FLOATING ACTION BUTTONS (Shop, Bag, Sleep, Zoom)
+   FLOATING GLASS DOCK (Right)
    ========================================================================== */
-#floating-actions {
+#vision-floating-dock {
   position: absolute;
-  right: 16px;
-  top: 95px;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   z-index: 20;
 }
 
-.btn-float {
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
-  background: var(--panel-bg);
-  border: 2px solid var(--panel-border);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
+.glass-btn {
+  width: 56px;
+  height: 56px;
+  border-radius: 20px;
+  background: var(--glass-bg);
+  border: 1.5px solid var(--glass-border);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   cursor: pointer;
-  transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.15s;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.2s;
 }
 
-.btn-float:active {
+.glass-btn:hover {
+  transform: scale(1.1);
+  background: rgba(255, 255, 255, 0.25);
+  border-color: var(--gold-bright);
+}
+
+.glass-btn:active {
   transform: scale(0.92);
 }
 
-.btn-float-icon {
+.g-icon {
   font-size: 20px;
 }
 
-.btn-float-label {
+.g-label {
   font-size: 9px;
   font-weight: 800;
-  color: var(--color-terracotta);
+  color: #cbd5e1;
+  margin-top: 2px;
 }
 
-/* ==========================================================================
-   MOBILE VIRTUAL JOYSTICK
-   ========================================================================== */
-#joystick-zone {
-  position: absolute;
-  bottom: 110px;
-  left: 20px;
-  width: 120px;
-  height: 120px;
-  z-index: 25;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  touch-action: none;
-}
-
-#joystick-base {
-  width: 110px;
-  height: 110px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.35);
-  border: 2px solid rgba(255, 255, 255, 0.6);
-  backdrop-filter: blur(8px);
-  position: relative;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.1);
-}
-
-#joystick-knob {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #fcd34d, #f59e0b);
-  border: 2px solid #fff;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-  position: absolute;
-  pointer-events: none;
-  transition: transform 0.05s ease-out;
+.glass-btn.btn-highlight {
+  border-color: var(--gold-primary);
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.4);
 }
 
 /* ==========================================================================
    BOTTOM TOOLBAR / HOTBAR
    ========================================================================== */
-#bottom-hotbar-dock {
+#vision-bottom-hotbar {
   position: absolute;
-  bottom: env(safe-area-inset-bottom, 12px);
+  bottom: env(safe-area-inset-bottom, 20px);
   left: 50%;
   transform: translateX(-50%);
+  z-index: 20;
+}
+
+.hotbar-glass-container {
+  background: var(--glass-bg);
+  border: 1.5px solid var(--glass-border);
+  backdrop-filter: blur(24px);
+  border-radius: 30px;
+  padding: 8px 16px;
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  z-index: 30;
-  max-width: 96vw;
+  gap: 10px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
 }
 
-.hotbar-scroll-wrapper {
-  background: var(--panel-bg);
-  border: 2px solid var(--panel-border);
-  border-radius: 24px;
-  padding: 6px 12px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
-  backdrop-filter: blur(14px);
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-}
-
-.hotbar-slots-row {
-  display: flex;
-  gap: 8px;
-}
-
-.hotbar-slot {
-  position: relative;
-  width: 54px;
-  height: 54px;
-  border-radius: 16px;
-  background: #fffdf5;
-  border: 2px solid #e2e8f0;
+.hotbar-slot-3d {
+  width: 58px;
+  height: 58px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   cursor: pointer;
-  transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.15s;
+  position: relative;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.hotbar-slot:active {
-  transform: scale(0.92);
-}
-
-.hotbar-slot.active {
-  border-color: #f59e0b;
-  background: #fef08a;
+.hotbar-slot-3d:hover {
   transform: translateY(-6px) scale(1.08);
-  box-shadow: 0 6px 16px rgba(245, 158, 11, 0.35);
+  background: rgba(255, 255, 255, 0.2);
 }
 
-.tool-icon {
+.hotbar-slot-3d.active {
+  background: var(--gold-gradient);
+  border-color: #fff;
+  transform: translateY(-8px) scale(1.12);
+  box-shadow: 0 10px 25px rgba(245, 158, 11, 0.5);
+}
+
+.h-icon {
   font-size: 24px;
 }
 
-.item-count-badge {
+.h-count {
   position: absolute;
-  bottom: 2px;
-  right: 4px;
-  background: #f59e0b;
-  color: #fff;
-  font-weight: 800;
+  bottom: 3px;
+  right: 6px;
   font-size: 10px;
-  padding: 1px 5px;
-  border-radius: 6px;
-}
-
-.hotbar-active-tip {
-  background: rgba(30, 41, 59, 0.85);
+  font-weight: 900;
   color: #fff;
-  font-size: 12px;
-  font-weight: 700;
-  padding: 4px 14px;
-  border-radius: 20px;
-  backdrop-filter: blur(8px);
+  background: rgba(0,0,0,0.6);
+  padding: 1px 5px;
+  border-radius: 8px;
 }
 
 /* ==========================================================================
-   BOTTOM SHEET MODALS (Shop & Inventory)
+   GLASS MODALS (Shop & Bag)
    ========================================================================== */
-.bottom-sheet-modal {
+.glass-modal {
   position: absolute;
   top: 0;
   left: 0;
@@ -385,14 +319,14 @@ html, body {
   height: 100%;
   z-index: 100;
   display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
+  justify-content: center;
+  align-items: center;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.25s ease;
+  transition: opacity 0.3s ease;
 }
 
-.bottom-sheet-modal.active {
+.glass-modal.active {
   opacity: 1;
   pointer-events: auto;
 }
@@ -403,315 +337,146 @@ html, body {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(6px);
+  background: rgba(12, 18, 30, 0.7);
+  backdrop-filter: blur(14px);
 }
 
-.modal-sheet {
+.modal-card {
   position: relative;
-  background: #fffdf7;
-  border-top-left-radius: 28px;
-  border-top-right-radius: 28px;
-  padding: 16px 20px 30px 20px;
-  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.2);
-  max-height: 80vh;
+  width: 780px;
+  max-width: 92vw;
+  max-height: 85vh;
+  background: rgba(30, 41, 59, 0.75);
+  border: 1.5px solid var(--glass-border);
+  backdrop-filter: blur(30px);
+  border-radius: 28px;
+  padding: 28px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
   display: flex;
   flex-direction: column;
-  transform: translateY(100%);
-  transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-.bottom-sheet-modal.active .modal-sheet {
-  transform: translateY(0);
-}
-
-.sheet-handle {
-  width: 44px;
-  height: 5px;
-  background: #cbd5e1;
-  border-radius: 3px;
-  margin: 0 auto 14px auto;
-}
-
-.sheet-header {
+.modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.15);
+  padding-bottom: 16px;
+  margin-bottom: 20px;
 }
 
-.shopkeeper-profile {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+.header-left h2 {
+  font-family: var(--font-luxury);
+  font-size: 20px;
+  color: var(--gold-bright);
+  letter-spacing: 2px;
 }
 
-.npc-avatar {
-  font-size: 38px;
-}
-
-.npc-info h2 {
-  font-size: 18px;
-  color: var(--color-terracotta);
-}
-
-.npc-info p {
+.header-left p {
   font-size: 12px;
-  color: var(--text-muted);
+  color: #94a3b8;
 }
 
-.btn-close-sheet {
+.btn-close-modal {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: #f1f5f9;
-  border: none;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  color: #fff;
   font-size: 16px;
   cursor: pointer;
 }
 
-.shop-tabs-nav {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
-}
-
-.shop-tab {
-  flex: 1;
-  background: #f8fafc;
-  border: 1.5px solid #e2e8f0;
-  padding: 8px 0;
-  border-radius: 12px;
-  font-weight: 700;
-  font-size: 13px;
-  color: var(--text-muted);
-  cursor: pointer;
-}
-
-.shop-tab.active {
-  background: #fef08a;
-  border-color: #f59e0b;
-  color: #78350f;
-}
-
-.shop-goods-grid {
+.shop-grid-scroll, .bag-grid-scroll {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 14px;
   overflow-y: auto;
-  max-height: 48vh;
+  max-height: 52vh;
   padding: 4px;
 }
 
-.goods-card {
-  background: #fff;
-  border: 2px solid #f1f5f9;
-  border-radius: 16px;
-  padding: 12px;
+.luxury-shop-item {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 18px;
+  padding: 16px 12px;
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
   cursor: pointer;
-  transition: transform 0.15s, border-color 0.15s;
+  transition: all 0.2s;
 }
 
-.goods-card:active {
-  transform: scale(0.95);
-  border-color: #f59e0b;
+.luxury-shop-item:hover {
+  transform: translateY(-4px);
+  background: rgba(255, 255, 255, 0.12);
+  border-color: var(--gold-primary);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.3);
 }
 
-.goods-icon {
-  font-size: 34px;
-  margin-bottom: 6px;
+.item-icon-3d {
+  font-size: 38px;
+  margin-bottom: 8px;
 }
 
-.goods-title {
+.item-title-3d {
   font-weight: 800;
   font-size: 13px;
-  color: #1e293b;
+  color: #fff;
 }
 
-.goods-desc {
+.item-desc-3d {
   font-size: 11px;
-  color: var(--text-muted);
-  margin: 4px 0 8px 0;
+  color: #94a3b8;
+  margin: 4px 0 10px 0;
 }
 
-.goods-price {
-  background: #fef08a;
-  color: #78350f;
-  font-weight: 800;
+.item-price-pill {
+  background: var(--gold-gradient);
+  color: #000;
+  font-weight: 900;
   font-size: 12px;
-  padding: 3px 10px;
-  border-radius: 10px;
+  padding: 3px 12px;
+  border-radius: 12px;
 }
 
-/* Inventory Grid */
-.inventory-grid {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 8px;
-  overflow-y: auto;
-  max-height: 42vh;
-  padding: 4px;
-}
-
-.inv-slot {
-  aspect-ratio: 1;
-  background: #fff;
-  border: 2px solid #e2e8f0;
-  border-radius: 14px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  position: relative;
-  cursor: pointer;
-}
-
-.inv-slot.selected {
-  border-color: #f59e0b;
-  background: #fef08a;
-}
-
-.inv-icon {
-  font-size: 26px;
-}
-
-.inventory-actions-row {
+.bag-bottom-actions {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 14px;
-  border-top: 1px solid #e2e8f0;
-  padding-top: 12px;
+  margin-top: 18px;
+  border-top: 1px solid rgba(255,255,255,0.15);
+  padding-top: 14px;
 }
 
-.btn-cozy-primary {
-  background: linear-gradient(135deg, #f59e0b, #d97706);
+.btn-luxury-gold {
+  background: var(--gold-gradient);
   border: none;
-  color: #fff;
-  font-weight: 800;
-  font-size: 14px;
-  padding: 10px 22px;
+  color: #000;
+  font-weight: 900;
+  font-size: 13px;
+  padding: 10px 24px;
   border-radius: 16px;
-  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.35);
+  box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);
   cursor: pointer;
 }
 
-/* ==========================================================================
-   CENTER DIALOG MODALS (Fishing Mini-Game & Daily Revenue Summary)
-   ========================================================================== */
-.center-dialog-modal {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 120;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.fishing-game-card, .shipping-summary-card {
-  position: relative;
-  background: #fffdf7;
-  border: 3px solid #fcd34d;
-  border-radius: 28px;
-  padding: 28px;
-  width: 360px;
-  max-width: 90vw;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.2);
-  text-align: center;
-}
-
-/* Fishing Mini-Game */
-.fishing-gauge-container {
-  display: flex;
-  justify-content: center;
-  gap: 16px;
-  margin: 20px 0;
-  height: 180px;
-}
-
-.fishing-water-column {
-  width: 50px;
-  height: 100%;
-  background: linear-gradient(180deg, #bae6fd 0%, #38bdf8 100%);
-  border-radius: 20px;
-  border: 2px solid #0284c7;
-  position: relative;
-  overflow: hidden;
-}
-
-.green-catch-bar {
-  position: absolute;
-  left: 2px;
-  width: 42px;
-  height: 48px;
-  background: rgba(34, 197, 94, 0.6);
-  border: 2px solid #16a34a;
-  border-radius: 10px;
-  bottom: 30px;
-  transition: bottom 0.05s linear;
-}
-
-.swimming-fish-icon {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 20px;
-  bottom: 60px;
-  transition: bottom 0.1s ease-out;
-}
-
-.fishing-catch-progress-track {
-  width: 14px;
-  height: 100%;
-  background: #e2e8f0;
-  border-radius: 8px;
-  position: relative;
-  overflow: hidden;
-}
-
-.fishing-catch-fill {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  background: #10b981;
-  transition: height 0.1s linear;
-}
-
-.btn-reel-touch {
-  width: 100%;
-  padding: 14px;
-  background: #0284c7;
-  border: 2px solid #38bdf8;
-  color: #fff;
-  font-weight: 800;
-  font-size: 15px;
-  border-radius: 16px;
-  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.4);
-}
-
 /* Toast Pill */
-#game-toast {
+#toast-pill {
   position: absolute;
   top: 75px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(30, 41, 59, 0.9);
-  color: #fff;
-  font-weight: 800;
+  background: rgba(245, 158, 11, 0.9);
+  color: #000;
+  font-weight: 900;
   font-size: 13px;
-  padding: 8px 20px;
-  border-radius: 24px;
-  box-shadow: 0 6px 20px rgba(0,0,0,0.15);
-  backdrop-filter: blur(8px);
+  padding: 8px 24px;
+  border-radius: 30px;
+  box-shadow: 0 8px 25px rgba(245, 158, 11, 0.5);
   z-index: 200;
   pointer-events: none;
   transition: opacity 0.3s, transform 0.3s;
