@@ -1,14 +1,15 @@
 /* ==========================================================================
-   HARVEST MOON: MINERAL MEADOW - AUTHENTIC RETRO-MODERN STYLESHEET
-   Classic Game Boy Advance / Nintendo Switch Cozy RPG UI & Touch Gamepad
+   HARVEST MOON: MINERAL MEADOW - DEFINITIVE MASTER STYLESHEET
+   Authentic GBA / Nintendo Switch Cozy RPG UI & Touch Gamepad
    ========================================================================== */
 
 :root {
-  --hm-wood-dark: #4a2810;
-  --hm-wood-mid: #78350f;
-  --hm-wood-border: #b45309;
-  --hm-cream-bg: #fffbeb;
+  --hm-wood-dark: #3a1e0b;
+  --hm-wood-mid: #6b3410;
+  --hm-wood-border: #9a4c17;
+  --hm-cream-bg: #fffbf0;
   --hm-gold: #f59e0b;
+  --hm-gold-dark: #b45309;
   --hm-stamina-green: #22c55e;
   --hm-text-dark: #291807;
 
@@ -30,7 +31,7 @@ html, body {
   width: 100vw;
   height: 100vh;
   overflow: hidden;
-  background-color: #1e293b;
+  background-color: #0f172a;
   font-family: var(--font-kr);
   color: var(--hm-text-dark);
   touch-action: none;
@@ -46,7 +47,7 @@ html, body {
   overflow: hidden;
 }
 
-/* 2.5D RPG World Canvas */
+/* 2.5D World Canvas */
 #gameCanvas {
   position: absolute;
   top: 0;
@@ -70,22 +71,22 @@ html, body {
 }
 
 /* ==========================================================================
-   CLASSIC WOODEN PANELS & TOP HUD
+   TOP HUD: TIME, WEATHER, LOCATION, STAMINA, GOLD
    ========================================================================== */
 .hm-panel {
   background: var(--hm-cream-bg);
-  border: 3px solid var(--hm-wood-mid);
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), inset 0 2px 0 #fff;
-  padding: 6px 12px;
+  border: 3.5px solid var(--hm-wood-mid);
+  border-radius: 14px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35), inset 0 2px 0 #fff;
+  padding: 8px 14px;
 }
 
 #hm-top-hud {
   position: absolute;
-  top: env(safe-area-inset-top, 10px);
+  top: env(safe-area-inset-top, 12px);
   left: 0;
   width: 100%;
-  padding: 0 16px;
+  padding: 0 18px;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
@@ -129,6 +130,17 @@ html, body {
   color: #1e293b;
 }
 
+.location-tag {
+  background: #fef08a;
+  border: 1px solid #eab308;
+  color: #854d0e;
+  font-family: var(--font-kr);
+  font-size: 10px;
+  font-weight: 900;
+  padding: 1px 6px;
+  border-radius: 8px;
+}
+
 .stats-panel {
   display: flex;
   flex-direction: column;
@@ -142,7 +154,7 @@ html, body {
   align-items: center;
   gap: 4px;
   font-family: var(--font-retro);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 900;
   color: #b45309;
 }
@@ -156,10 +168,10 @@ html, body {
 }
 
 .stamina-bar-bg {
-  width: 70px;
-  height: 8px;
+  width: 80px;
+  height: 9px;
   background: #cbd5e1;
-  border-radius: 4px;
+  border-radius: 5px;
   overflow: hidden;
   border: 1px solid #64748b;
 }
@@ -170,21 +182,19 @@ html, body {
   transition: width 0.2s ease-out;
 }
 
-/* ==========================================================================
-   HELD TOOL / ITEM HUD (Top Left)
-   ========================================================================== */
+/* Held Item / Tool HUD */
 #held-item-hud {
   position: absolute;
-  top: 70px;
-  left: 16px;
+  top: 75px;
+  left: 18px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   z-index: 20;
 }
 
 .held-icon {
-  font-size: 22px;
+  font-size: 24px;
 }
 
 .held-info {
@@ -193,7 +203,7 @@ html, body {
 }
 
 .held-name {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 900;
   color: var(--hm-wood-dark);
 }
@@ -204,14 +214,14 @@ html, body {
 }
 
 /* ==========================================================================
-   AUTHENTIC DIALOG BOX (Bottom)
+   AUTHENTIC DIALOG BOX (WITH NPC HEARTS)
    ========================================================================== */
 #dialog-box {
   position: absolute;
-  bottom: 120px;
+  bottom: 125px;
   left: 50%;
   transform: translateX(-50%);
-  width: 600px;
+  width: 620px;
   max-width: 92vw;
   z-index: 50;
   transition: opacity 0.2s, transform 0.2s;
@@ -224,24 +234,24 @@ html, body {
 }
 
 .dialog-frame {
-  background: #fffdf5;
+  background: #fffdf7;
   border: 4px solid var(--hm-wood-mid);
-  border-radius: 16px;
-  padding: 12px 16px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), inset 0 2px 0 #fff;
+  border-radius: 18px;
+  padding: 14px 18px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45), inset 0 2px 0 #fff;
   display: flex;
-  gap: 14px;
+  gap: 16px;
   align-items: center;
   position: relative;
 }
 
 .dialog-portrait {
-  font-size: 40px;
-  width: 52px;
-  height: 52px;
+  font-size: 42px;
+  width: 56px;
+  height: 56px;
   background: #fef08a;
   border: 2px solid var(--hm-wood-border);
-  border-radius: 12px;
+  border-radius: 14px;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -252,18 +262,28 @@ html, body {
   flex: 1;
 }
 
+.dialog-speaker-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
 .dialog-speaker {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 900;
   color: var(--hm-wood-dark);
-  margin-bottom: 3px;
+}
+
+.npc-heart-display {
+  font-size: 12px;
 }
 
 .dialog-text {
   font-size: 13px;
   font-weight: 700;
   color: #334155;
-  line-height: 1.4;
+  line-height: 1.45;
 }
 
 .dialog-next-arrow {
@@ -281,14 +301,14 @@ html, body {
 }
 
 /* ==========================================================================
-   MOBILE GAMEPAD CONTROLS (D-Pad & A/B/X/Y Buttons)
+   MOBILE GBA / SWITCH TOUCH CONTROLLER
    ========================================================================== */
 #mobile-gamepad {
   position: absolute;
   bottom: env(safe-area-inset-bottom, 12px);
   left: 0;
   width: 100%;
-  padding: 0 16px;
+  padding: 0 18px;
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
@@ -299,8 +319,8 @@ html, body {
 /* D-Pad */
 #dpad-container {
   pointer-events: auto;
-  width: 135px;
-  height: 135px;
+  width: 140px;
+  height: 140px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -313,17 +333,17 @@ html, body {
 }
 
 .dpad-btn {
-  width: 44px;
-  height: 44px;
+  width: 46px;
+  height: 46px;
   background: #334155;
   border: 2px solid #1e293b;
-  color: #94a3b8;
-  font-size: 16px;
+  color: #cbd5e1;
+  font-size: 18px;
   display: flex;
   justify-content: center;
   align-items: center;
   cursor: pointer;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
 }
 
 .dpad-btn:active {
@@ -331,18 +351,18 @@ html, body {
   color: #fff;
 }
 
-.dpad-up { border-top-left-radius: 8px; border-top-right-radius: 8px; }
-.dpad-down { border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; }
-.dpad-left { border-top-left-radius: 8px; border-bottom-left-radius: 8px; }
-.dpad-right { border-top-right-radius: 8px; border-bottom-right-radius: 8px; }
-.dpad-center { width: 44px; height: 44px; background: #334155; }
+.dpad-up { border-top-left-radius: 10px; border-top-right-radius: 10px; }
+.dpad-down { border-bottom-left-radius: 10px; border-bottom-right-radius: 10px; }
+.dpad-left { border-top-left-radius: 10px; border-bottom-left-radius: 10px; }
+.dpad-right { border-top-right-radius: 10px; border-bottom-right-radius: 10px; }
+.dpad-center { width: 46px; height: 46px; background: #334155; }
 
 /* Action Buttons (A/B/X/Y) */
 #actions-container {
   pointer-events: auto;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   align-items: flex-end;
 }
 
@@ -352,8 +372,8 @@ html, body {
 }
 
 .btn-round {
-  width: 52px;
-  height: 52px;
+  width: 54px;
+  height: 54px;
   border-radius: 50%;
   border: 2.5px solid #1e293b;
   display: flex;
@@ -361,7 +381,7 @@ html, body {
   justify-content: center;
   align-items: center;
   cursor: pointer;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
   transition: transform 0.08s;
 }
 
@@ -376,37 +396,18 @@ html, body {
 }
 
 .btn-round strong {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 900;
   line-height: 1;
 }
 
-.btn-a {
-  background: #ef4444;
-  color: #fff;
-  border-color: #991b1b;
-}
-
-.btn-b {
-  background: #f59e0b;
-  color: #fff;
-  border-color: #b45309;
-}
-
-.btn-x {
-  background: #3b82f6;
-  color: #fff;
-  border-color: #1d4ed8;
-}
-
-.btn-y {
-  background: #10b981;
-  color: #fff;
-  border-color: #047857;
-}
+.btn-a { background: #ef4444; color: #fff; border-color: #991b1b; }
+.btn-b { background: #f59e0b; color: #fff; border-color: #b45309; }
+.btn-x { background: #3b82f6; color: #fff; border-color: #1d4ed8; }
+.btn-y { background: #10b981; color: #fff; border-color: #047857; }
 
 /* ==========================================================================
-   MODALS (Shop, Rucksack, Shipping)
+   MODALS (Cooking, Blacksmith, TV, Shop, Rucksack, Shipping)
    ========================================================================== */
 .hm-modal {
   position: absolute;
@@ -415,21 +416,22 @@ html, body {
   width: 100%;
   height: 100%;
   z-index: 100;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
   display: flex;
   justify-content: center;
   align-items: center;
 }
 
 .modal-card {
-  background: #fffbeb;
+  background: #fffbf0;
   border: 4px solid var(--hm-wood-mid);
-  border-radius: 20px;
-  width: 520px;
-  max-width: 90vw;
-  max-height: 80vh;
-  padding: 20px;
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.4);
+  border-radius: 22px;
+  width: 560px;
+  max-width: 92vw;
+  max-height: 82vh;
+  padding: 22px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
   display: flex;
   flex-direction: column;
 }
@@ -440,13 +442,19 @@ html, body {
   align-items: center;
   border-bottom: 2px solid var(--hm-wood-border);
   padding-bottom: 10px;
-  margin-bottom: 14px;
+  margin-bottom: 8px;
 }
 
 .modal-header h2 {
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 900;
   color: var(--hm-wood-dark);
+}
+
+.modal-subtext {
+  font-size: 11px;
+  color: #64748b;
+  margin-bottom: 14px;
 }
 
 .btn-close-hm {
@@ -459,73 +467,75 @@ html, body {
   cursor: pointer;
 }
 
-.shop-tabs {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.tab-btn {
-  flex: 1;
-  padding: 8px;
-  background: #f1f5f9;
-  border: 2px solid #cbd5e1;
-  border-radius: 10px;
-  font-weight: 900;
-  cursor: pointer;
-}
-
-.tab-btn.active {
-  background: #fef08a;
-  border-color: #f59e0b;
-}
-
-.shop-items-list {
+/* Recipes Grid */
+.recipes-grid, .upgrades-list, .shop-items-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   overflow-y: auto;
-  max-height: 48vh;
+  max-height: 50vh;
+  padding-right: 4px;
 }
 
-.shop-item-row {
+.recipe-row, .upgrade-row, .shop-item-row {
   background: #fff;
   border: 2px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 10px;
+  border-radius: 14px;
+  padding: 12px;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.04);
 }
 
-.shop-item-info {
+.recipe-info, .upgrade-info, .shop-item-info {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
-.item-icon {
-  font-size: 26px;
+.recipe-icon, .upgrade-icon, .item-icon {
+  font-size: 30px;
 }
 
-.item-title {
+.recipe-title, .upgrade-title, .item-title {
   font-size: 13px;
   font-weight: 900;
+  color: #1e293b;
 }
 
-.item-desc {
+.recipe-desc, .upgrade-desc, .item-desc {
   font-size: 11px;
   color: #64748b;
 }
 
-.btn-buy-item {
-  background: #f59e0b;
-  border: 2px solid #b45309;
+.btn-cook-recipe, .btn-upgrade-tool, .btn-buy-item {
+  background: var(--hm-gold);
+  border: 2px solid var(--hm-gold-dark);
   color: #fff;
   font-weight: 900;
-  padding: 6px 14px;
-  border-radius: 8px;
+  font-size: 12px;
+  padding: 8px 16px;
+  border-radius: 10px;
   cursor: pointer;
+  box-shadow: 0 2px 6px rgba(180, 83, 9, 0.3);
+}
+
+/* TV Screen Box */
+.tv-screen-box {
+  background: #0f172a;
+  border: 3px solid #334155;
+  border-radius: 16px;
+  padding: 20px;
+  color: #38bdf8;
+  font-family: var(--font-retro);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.tv-channel-title {
+  color: #facc15;
+  margin-bottom: 10px;
 }
 
 /* Rucksack Grid */
@@ -540,7 +550,7 @@ html, body {
   aspect-ratio: 1;
   background: #fff;
   border: 2px solid #cbd5e1;
-  border-radius: 12px;
+  border-radius: 14px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -550,7 +560,7 @@ html, body {
 }
 
 .rucksack-slot.selected {
-  border-color: #f59e0b;
+  border-color: var(--hm-gold);
   background: #fef08a;
 }
 
@@ -559,7 +569,12 @@ html, body {
   justify-content: space-between;
   align-items: center;
   border-top: 2px solid var(--hm-wood-border);
-  padding-top: 10px;
+  padding-top: 12px;
+}
+
+.rucksack-action-btns {
+  display: flex;
+  gap: 8px;
 }
 
 .btn-hm-action {
@@ -567,27 +582,28 @@ html, body {
   border: 2px solid #047857;
   color: #fff;
   font-weight: 900;
-  padding: 8px 18px;
+  font-size: 12px;
+  padding: 8px 16px;
   border-radius: 10px;
   cursor: pointer;
 }
 
 .btn-hm-primary {
-  background: #f59e0b;
-  border: 2px solid #b45309;
+  background: var(--hm-gold);
+  border: 2px solid var(--hm-gold-dark);
   color: #fff;
   font-weight: 900;
-  padding: 10px;
-  border-radius: 10px;
+  padding: 12px;
+  border-radius: 12px;
   cursor: pointer;
   width: 100%;
-  margin-top: 12px;
+  margin-top: 14px;
 }
 
 /* Toast */
 #hm-toast {
   position: absolute;
-  top: 75px;
+  top: 80px;
   left: 50%;
   transform: translateX(-50%);
   background: rgba(30, 41, 59, 0.95);
@@ -596,8 +612,8 @@ html, body {
   font-size: 13px;
   padding: 8px 24px;
   border-radius: 20px;
-  border: 2px solid #f59e0b;
-  box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+  border: 2px solid var(--hm-gold);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.35);
   z-index: 200;
   pointer-events: none;
   transition: opacity 0.3s, transform 0.3s;

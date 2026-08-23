@@ -4,22 +4,23 @@
   <meta charset="UTF-8">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>HARVEST MOON: MINERAL MEADOW | 목장이야기 (하베스트문)</title>
+  <title>HARVEST MOON: MINERAL MEADOW | 목장이야기 완전판</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Gaegu:wght@700&family=Press+Start+2P&family=Noto+Sans+KR:wght@700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=4.0.0">
+  <link rel="stylesheet" href="style.css?v=5.0.0">
 </head>
 <body>
   <div id="game-viewport">
     
-    <!-- Retro 2.5D RPG World Canvas -->
+    <!-- Retro 2.5D Multi-Zone Canvas -->
     <canvas id="gameCanvas"></canvas>
 
-    <!-- Weather & Night Overlay -->
+    <!-- Weather, Night & Rain Particles Overlay -->
     <div id="weather-filter"></div>
+    <div id="rain-layer" class="hidden"></div>
 
-    <!-- ================= TOP HUD: TIME, WEATHER, STAMINA, GOLD ================= -->
+    <!-- ================= TOP HUD: TIME, CALENDAR, WEATHER, STAMINA, GOLD ================= -->
     <div id="hm-top-hud">
       <!-- Left: Calendar & Clock -->
       <div class="hm-panel time-panel">
@@ -31,6 +32,7 @@
         <div class="clock-row">
           <span class="clock-icon">⏰</span>
           <span id="hud-clock">AM 06:00</span>
+          <span class="location-tag" id="hud-zone-name">🏡 내 목장</span>
         </div>
       </div>
 
@@ -45,7 +47,7 @@
           <div class="stamina-bar-bg">
             <div id="hud-stamina-fill" class="stamina-bar-fill" style="width: 100%;"></div>
           </div>
-          <span id="hud-stamina-val">100</span>
+          <span id="hud-stamina-val">100/100</span>
         </div>
       </div>
     </div>
@@ -54,8 +56,8 @@
     <div id="held-item-hud" class="hm-panel">
       <div class="held-icon" id="hud-tool-icon">🚜</div>
       <div class="held-info">
-        <div class="held-name" id="hud-tool-name">호미 (Hoe)</div>
-        <div class="held-sub" id="hud-tool-sub">밭을 일굽니다 [B 버튼]</div>
+        <div class="held-name" id="hud-tool-name">호미 (Hoe) Lv.1</div>
+        <div class="held-sub" id="hud-tool-sub">밭을 일굽니다 [B 버튼] (길게 눌러 차지!)</div>
       </div>
     </div>
 
@@ -64,63 +66,107 @@
       <div class="dialog-frame">
         <div class="dialog-portrait" id="dialog-portrait">👨‍🌾</div>
         <div class="dialog-content">
-          <div class="dialog-speaker" id="dialog-speaker">촌장 토마스 (Mayor Thomas)</div>
-          <div class="dialog-text" id="dialog-text">"자네가 새로 온 목장주인가? 미네랄 계곡에 온 것을 진심으로 환영하네! 호미로 밭을 갈고 씨앗을 심어보게나."</div>
+          <div class="dialog-speaker-row">
+            <span class="dialog-speaker" id="dialog-speaker">촌장 토마스</span>
+            <span class="npc-heart-display" id="dialog-hearts">❤️❤️❤️🤍🤍</span>
+          </div>
+          <div class="dialog-text" id="dialog-text">"목장 생활에 적응하고 있는가? 마을 사람들과도 인사를 나누어보게나!"</div>
         </div>
         <div class="dialog-next-arrow">▼</div>
       </div>
     </div>
 
-    <!-- ================= SHOP MODAL (PIERRE'S STORE) ================= -->
+    <!-- ================= MODAL: KITCHEN COOKING STATION ================= -->
+    <div id="modal-kitchen" class="hm-modal hidden">
+      <div class="modal-card cooking-card">
+        <div class="modal-header">
+          <h2>🍳 주방 요리 스테이션 (Farm Kitchen)</h2>
+          <button class="btn-close-hm" data-modal="modal-kitchen">✕</button>
+        </div>
+        <p class="modal-subtext">수확한 작물과 우유, 달걀로 맛있는 음식을 요리하여 체력을 회복하세요!</p>
+        <div class="recipes-grid" id="recipes-container"></div>
+      </div>
+    </div>
+
+    <!-- ================= MODAL: BLACKSMITH TOOL UPGRADES ================= -->
+    <div id="modal-blacksmith" class="hm-modal hidden">
+      <div class="modal-card blacksmith-card">
+        <div class="modal-header">
+          <h2>⚒️ 사이바라 대장간 (Saibara's Blacksmith)</h2>
+          <button class="btn-close-hm" data-modal="modal-blacksmith">✕</button>
+        </div>
+        <p class="modal-subtext">광산에서 캔 광석과 골드로 도구를 강화하여 3x3 범위 작업을 하세요!</p>
+        <div class="upgrades-list" id="blacksmith-upgrades-container"></div>
+      </div>
+    </div>
+
+    <!-- ================= MODAL: TV & WEATHER FORECAST ================= -->
+    <div id="modal-tv" class="hm-modal hidden">
+      <div class="modal-card tv-card">
+        <div class="modal-header">
+          <h2>📺 앤틱 브라운관 TV (Mineral TV)</h2>
+          <button class="btn-close-hm" data-modal="modal-tv">✕</button>
+        </div>
+        <div class="tv-screen-box">
+          <div class="tv-channel-title">📡 [내일의 미네랄 날씨 뉴스]</div>
+          <div class="tv-content-text" id="tv-forecast-text">"내일은 하루 종일 맑은 햇살이 내리쬘 예정입니다. 농작물 관리에 좋은 날씨입니다!"</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= MODAL: PIERRE'S GENERAL STORE ================= -->
     <div id="modal-shop" class="hm-modal hidden">
       <div class="modal-card">
         <div class="modal-header">
-          <h2>🏪 피에르 잡화점 (Pierre's General Store)</h2>
-          <button class="btn-close-hm" id="btn-close-shop">✕</button>
+          <h2>🏪 피에르 잡화점 (Pierre's Store)</h2>
+          <button class="btn-close-hm" data-modal="modal-shop">✕</button>
         </div>
         <div class="shop-tabs">
-          <button class="tab-btn active" data-tab="seeds">🌱 씨앗 (Seeds)</button>
-          <button class="tab-btn" data-tab="tools">🛠️ 도구 & 사료</button>
+          <button class="tab-btn active" data-tab="seeds">🌱 계절 씨앗</button>
+          <button class="tab-btn" data-tab="supplies">🌾 목장 사료 & 용품</button>
         </div>
         <div class="shop-items-list" id="shop-items-container"></div>
       </div>
     </div>
 
-    <!-- ================= RUCKSACK / INVENTORY MODAL ================= -->
+    <!-- ================= MODAL: RUCKSACK INVENTORY ================= -->
     <div id="modal-rucksack" class="hm-modal hidden">
       <div class="modal-card">
         <div class="modal-header">
           <h2>🎒 배낭 (Rucksack)</h2>
-          <button class="btn-close-hm" id="btn-close-rucksack">✕</button>
+          <button class="btn-close-hm" data-modal="modal-rucksack">✕</button>
         </div>
         <div class="rucksack-grid" id="rucksack-container"></div>
         <div class="rucksack-footer">
-          <span id="rucksack-item-desc">아이템을 선택하여 손에 들거나 출하하세요.</span>
-          <button id="btn-equip-item" class="btn-hm-action">손에 들기 (Equip)</button>
+          <span id="rucksack-item-desc">아이템을 선택해 머리 위로 들거나 먹으세요.</span>
+          <div class="rucksack-action-btns">
+            <button id="btn-eat-item" class="btn-hm-action" style="background:#e11d48;">먹기 (Eat)</button>
+            <button id="btn-equip-item" class="btn-hm-action">손에 들기 (Equip)</button>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- ================= DAILY 5:00 PM SHIPPING SETTLEMENT MODAL ================= -->
+    <!-- ================= DAILY 5:00 PM SHIPPING SETTLEMENT ================= -->
     <div id="modal-shipping" class="hm-modal hidden">
       <div class="modal-card shipping-card">
         <div class="shipping-header">
           <div class="zack-avatar">🤠</div>
           <div>
-            <h2>📦 오후 5:00 잭의 출하 정산</h2>
-            <p>"오늘도 좋은 농산물을 많이 모았더군! 여기 대금일세."</p>
+            <h2>📦 오후 5:00 잭의 출하 정산서</h2>
+            <p>"오늘도 수고 많았네! 신선한 농산물 대금을 지급하겠네."</p>
           </div>
         </div>
         <div class="shipping-list" id="shipping-list-container"></div>
         <div class="shipping-total-row">
-          <span>오늘의 총 출하액:</span>
+          <span>오늘의 총 수익:</span>
           <strong class="gold-text" id="shipping-total-gold">+0 G</strong>
         </div>
-        <button id="btn-close-shipping" class="btn-hm-primary">정산 확인</button>
+        <button id="btn-close-shipping" class="btn-hm-primary">정산 완료</button>
       </div>
     </div>
 
-    <!-- ================= MOBILE GAME BOY / NINTENDO TOUCH CONTROLLER ================= -->
+    <!-- ================= MOBILE GBA / SWITCH TOUCH CONTROLLER ================= -->
     <div id="mobile-gamepad">
       <!-- D-Pad (Left Thumb) -->
       <div id="dpad-container">
@@ -136,7 +182,7 @@
       <!-- Action Buttons (Right Thumb) -->
       <div id="actions-container">
         <div class="action-btn-row">
-          <button class="btn-round btn-y" id="btn-act-y" title="도구 교체">
+          <button class="btn-round btn-y" id="btn-act-y" title="도구 퀵 스왑">
             <span class="btn-sub">도구</span>
             <strong>Y</strong>
           </button>
@@ -146,11 +192,11 @@
           </button>
         </div>
         <div class="action-btn-row">
-          <button class="btn-round btn-b" id="btn-act-b" title="도구 사용">
-            <span class="btn-sub">도구사용</span>
+          <button class="btn-round btn-b" id="btn-act-b" title="도구 사용 (홀드 시 차지)">
+            <span class="btn-sub">도구/차지</span>
             <strong>B</strong>
           </button>
-          <button class="btn-round btn-a" id="btn-act-a" title="대화 / 줍기 / 조사">
+          <button class="btn-round btn-a" id="btn-act-a" title="대화/줍기/출하/승마">
             <span class="btn-sub">결정/줍기</span>
             <strong>A</strong>
           </button>
@@ -164,9 +210,11 @@
   </div>
 
   <!-- Game Scripts -->
-  <script src="js/audio.js?v=4.0.0"></script>
-  <script src="js/sprites.js?v=4.0.0"></script>
-  <script src="js/map.js?v=4.0.0"></script>
-  <script src="js/game.js?v=4.0.0"></script>
+  <script src="js/audio.js?v=5.0.0"></script>
+  <script src="js/sprites.js?v=5.0.0"></script>
+  <script src="js/cooking.js?v=5.0.0"></script>
+  <script src="js/npcs.js?v=5.0.0"></script>
+  <script src="js/map.js?v=5.0.0"></script>
+  <script src="js/game.js?v=5.0.0"></script>
 </body>
 </html>
