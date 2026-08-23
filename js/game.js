@@ -1,6 +1,5 @@
 /* ==========================================================================
-   ABYSSAL SLAYER: MASTER GAME ENGINE
-   Game State Machine, Input, Collisions, Boons, Meta-Progression & Loop
+   ABYSSAL SLAYER: MASTER GAME ENGINE (MOBILE-ENHANCED & AUTO-AIM)
    ========================================================================== */
 
 class AbyssalGameEngine {
@@ -25,13 +24,12 @@ class AbyssalGameEngine {
     this.rerollCount = 1;
     this.runStartTime = 0;
 
-    // Mobile Virtual Joystick State
+    // Mobile Dynamic Floating Joystick State
     this.touchJoystick = {
       active: false,
+      identifier: null,
       startX: 0,
       startY: 0,
-      curX: 0,
-      curY: 0,
       dx: 0,
       dy: 0
     };
@@ -48,11 +46,20 @@ class AbyssalGameEngine {
   initCanvas() {
     this.resize();
     window.addEventListener('resize', () => this.resize());
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', () => this.resize());
+    }
   }
 
   resize() {
-    this.canvas.width = window.innerWidth;
-    this.canvas.height = window.innerHeight;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    this.canvas.width = w * dpr;
+    this.canvas.height = h * dpr;
+    this.ctx.scale(dpr, dpr);
+    this.viewportWidth = w;
+    this.viewportHeight = h;
   }
 
   loadSave() {
@@ -74,6 +81,25 @@ class AbyssalGameEngine {
       };
       localStorage.setItem('abyssal_slayer_save', JSON.stringify(data));
     } catch(e) {}
+  }
+
+  autoAimNearestEnemy() {
+    if (!this.player || this.enemies.length === 0) return;
+    let closest = null;
+    let minDist = 600;
+    this.enemies.forEach(e => {
+      if (e.hp > 0) {
+        const dist = Math.hypot(e.x - this.player.x, e.y - this.player.y);
+        if (dist < minDist) {
+          minDist = dist;
+          closest = e;
+        }
+      }
+    });
+
+    if (closest) {
+      this.player.aimAngle = Math.atan2(closest.y - this.player.y, closest.x - this.player.x);
+    }
   }
 
   setupInputs() {
@@ -101,7 +127,7 @@ class AbyssalGameEngine {
     window.addEventListener('mousemove', (e) => {
       this.mouse.x = e.clientX;
       this.mouse.y = e.clientY;
-      if (this.player) {
+      if (this.player && !this.touchJoystick.active) {
         const screenPx = this.player.x - this.camera.x;
         const screenPy = this.player.y - this.camera.y;
         this.player.aimAngle = Math.atan2(this.mouse.y - screenPy, this.mouse.x - screenPx);
@@ -121,63 +147,82 @@ class AbyssalGameEngine {
       this.mouse.isDown = false;
     });
 
-    // Mobile Touch Joystick
-    const joyZone = document.getElementById('touch-joystick-zone');
+    // Mobile Dynamic Floating Joystick
+    const touchArea = document.getElementById('touch-joystick-toucharea');
+    const floatJoy = document.getElementById('floating-joystick');
     const joyThumb = document.getElementById('joystick-thumb');
 
-    if (joyZone) {
-      joyZone.addEventListener('touchstart', (e) => {
+    if (touchArea && floatJoy && joyThumb) {
+      touchArea.addEventListener('touchstart', (e) => {
         e.preventDefault();
-        const touch = e.touches[0];
-        const rect = joyZone.getBoundingClientRect();
+        const touch = e.changedTouches[0];
         this.touchJoystick.active = true;
-        this.touchJoystick.startX = rect.left + rect.width / 2;
-        this.touchJoystick.startY = rect.top + rect.height / 2;
-        this.updateJoystick(touch.clientX, touch.clientY, joyThumb);
-      });
+        this.touchJoystick.identifier = touch.identifier;
+        this.touchJoystick.startX = touch.clientX;
+        this.touchJoystick.startY = touch.clientY;
 
-      joyZone.addEventListener('touchmove', (e) => {
+        floatJoy.style.left = `${touch.clientX}px`;
+        floatJoy.style.top = `${touch.clientY}px`;
+        floatJoy.classList.remove('hidden');
+
+        this.updateFloatingJoystick(touch.clientX, touch.clientY, joyThumb);
+      }, { passive: false });
+
+      touchArea.addEventListener('touchmove', (e) => {
         e.preventDefault();
         if (this.touchJoystick.active) {
-          const touch = e.touches[0];
-          this.updateJoystick(touch.clientX, touch.clientY, joyThumb);
+          for (let i = 0; i < e.changedTouches.length; i++) {
+            const touch = e.changedTouches[i];
+            if (touch.identifier === this.touchJoystick.identifier) {
+              this.updateFloatingJoystick(touch.clientX, touch.clientY, joyThumb);
+              break;
+            }
+          }
         }
-      });
+      }, { passive: false });
 
-      const resetJoy = () => {
-        this.touchJoystick.active = false;
-        this.touchJoystick.dx = 0;
-        this.touchJoystick.dy = 0;
-        if (joyThumb) joyThumb.style.transform = 'translate(-50%, -50%)';
+      const endJoy = (e) => {
+        for (let i = 0; i < e.changedTouches.length; i++) {
+          if (e.changedTouches[i].identifier === this.touchJoystick.identifier) {
+            this.touchJoystick.active = false;
+            this.touchJoystick.identifier = null;
+            this.touchJoystick.dx = 0;
+            this.touchJoystick.dy = 0;
+            floatJoy.classList.add('hidden');
+            joyThumb.style.transform = 'translate(-50%, -50%)';
+            break;
+          }
+        }
       };
 
-      joyZone.addEventListener('touchend', resetJoy);
-      joyZone.addEventListener('touchcancel', resetJoy);
+      touchArea.addEventListener('touchend', endJoy);
+      touchArea.addEventListener('touchcancel', endJoy);
     }
 
-    // Touch Action Buttons
-    const bindTouch = (id, action) => {
+    // Touch Action Buttons with Auto-Aim
+    const bindTouchAction = (id, action) => {
       const btn = document.getElementById(id);
       if (btn) {
         btn.addEventListener('touchstart', (e) => {
           e.preventDefault();
+          this.autoAimNearestEnemy();
           action();
-        });
+        }, { passive: false });
       }
     };
 
-    bindTouch('tbtn-atk', () => { if (this.player) this.player.basicAttack(this.enemies); });
-    bindTouch('tbtn-dash', () => { if (this.player) this.player.dash(this.touchJoystick.dx, this.touchJoystick.dy); });
-    bindTouch('tbtn-sk1', () => { if (this.player) this.player.castSkill1(this.projectiles); });
-    bindTouch('tbtn-sk2', () => { if (this.player) this.player.castSkill2(this.projectiles); });
-    bindTouch('tbtn-ult', () => { if (this.player) this.player.castUlt(this.projectiles); });
+    bindTouchAction('tbtn-atk', () => { if (this.player) this.player.basicAttack(this.enemies); });
+    bindTouchAction('tbtn-dash', () => { if (this.player) this.player.dash(this.touchJoystick.dx, this.touchJoystick.dy); });
+    bindTouchAction('tbtn-sk1', () => { if (this.player) this.player.castSkill1(this.projectiles); });
+    bindTouchAction('tbtn-sk2', () => { if (this.player) this.player.castSkill2(this.projectiles); });
+    bindTouchAction('tbtn-ult', () => { if (this.player) this.player.castUlt(this.projectiles); });
   }
 
-  updateJoystick(cx, cy, thumb) {
+  updateFloatingJoystick(cx, cy, thumb) {
     const rawDx = cx - this.touchJoystick.startX;
     const rawDy = cy - this.touchJoystick.startY;
     const dist = Math.hypot(rawDx, rawDy);
-    const maxR = 45;
+    const maxR = 40;
     const clampedDist = Math.min(maxR, dist);
     const angle = Math.atan2(rawDy, rawDx);
 
@@ -189,7 +234,7 @@ class AbyssalGameEngine {
     this.touchJoystick.dx = fx / maxR;
     this.touchJoystick.dy = fy / maxR;
 
-    if (this.player && dist > 10) {
+    if (this.player && dist > 8) {
       this.player.aimAngle = angle;
     }
   }
@@ -286,18 +331,18 @@ class AbyssalGameEngine {
       card.style.background = '#1e293b';
       card.style.border = '1px solid var(--border-gold)';
       card.style.borderRadius = '10px';
-      card.style.padding = '12px';
+      card.style.padding = '10px 12px';
       card.style.display = 'flex';
       card.style.justifyContent = 'space-between';
       card.style.alignItems = 'center';
-      card.style.margin = '8px 0';
+      card.style.margin = '6px 0';
 
       card.innerHTML = `
         <div>
-          <div style="font-weight:900; font-size:15px; color:#fff;">${t.icon} ${t.name} (Lv.${curLvl}/${t.maxLevel})</div>
-          <div style="font-size:12px; color:#94a3b8;">${t.desc}</div>
+          <div style="font-weight:900; font-size:14px; color:#fff;">${t.icon} ${t.name} (Lv.${curLvl}/${t.maxLevel})</div>
+          <div style="font-size:11px; color:#94a3b8;">${t.desc}</div>
         </div>
-        <button class="btn-upgrade-talent" style="padding:8px 16px; background:${isMax ? '#475569' : '#e11d48'}; border:none; border-radius:6px; color:#fff; font-weight:800; cursor:${isMax ? 'default' : 'pointer'};">
+        <button class="btn-upgrade-talent" style="padding:6px 12px; background:${isMax ? '#475569' : '#e11d48'}; border:none; border-radius:6px; color:#fff; font-weight:800; font-size:12px; cursor:${isMax ? 'default' : 'pointer'};">
           ${isMax ? 'MAX' : `${cost} 💜 강화`}
         </button>
       `;
@@ -333,7 +378,6 @@ class AbyssalGameEngine {
     const container = document.getElementById('boon-cards-container');
     container.innerHTML = '';
 
-    // Pick 3 random boons
     const available = GODLY_BOONS.filter(b => !this.player.boons.some(pb => pb.id === b.id));
     const shuffled = available.sort(() => 0.5 - Math.random()).slice(0, 3);
 
@@ -353,7 +397,7 @@ class AbyssalGameEngine {
         this.state = 'PLAYING';
         window.abyssAudio.playSFX('boon_pickup');
         this.addBoonBadge(b);
-        this.showToast(`✨ ${b.name} 축복을 획득하였습니다!`);
+        this.showToast(`✨ ${b.name} 축복 획득!`);
       };
 
       container.appendChild(card);
@@ -382,18 +426,18 @@ class AbyssalGameEngine {
       card.style.background = '#1e293b';
       card.style.border = '1px solid var(--border-gold)';
       card.style.borderRadius = '10px';
-      card.style.padding = '12px';
+      card.style.padding = '10px 12px';
       card.style.display = 'flex';
       card.style.justifyContent = 'space-between';
       card.style.alignItems = 'center';
-      card.style.margin = '8px 0';
+      card.style.margin = '6px 0';
 
       card.innerHTML = `
         <div>
-          <div style="font-weight:900; font-size:15px; color:#fff;">${item.icon} ${item.name}</div>
-          <div style="font-size:12px; color:#94a3b8;">${item.desc}</div>
+          <div style="font-weight:900; font-size:14px; color:#fff;">${item.icon} ${item.name}</div>
+          <div style="font-size:11px; color:#94a3b8;">${item.desc}</div>
         </div>
-        <button style="padding:8px 16px; background:#eab308; border:none; border-radius:6px; color:#000; font-weight:900; cursor:pointer;">
+        <button style="padding:6px 12px; background:#eab308; border:none; border-radius:6px; color:#000; font-weight:900; font-size:12px; cursor:pointer;">
           ${item.cost} 💰 구매
         </button>
       `;
@@ -474,7 +518,7 @@ class AbyssalGameEngine {
     const toast = document.getElementById('game-toast');
     toast.innerText = msg;
     toast.classList.remove('hidden');
-    setTimeout(() => toast.classList.add('hidden'), 2400);
+    setTimeout(() => toast.classList.add('hidden'), 2200);
   }
 
   updateHUD() {
@@ -489,15 +533,18 @@ class AbyssalGameEngine {
     document.getElementById('hud-souls').innerText = this.player.souls;
     document.getElementById('hud-floor').innerText = `1F - ${this.dungeon.currentRoom.name}`;
 
-    // Cooldown sweeps
-    document.getElementById('cd-dash').style.height = `${(this.player.dashCdTimer / this.player.dashCd) * 100}%`;
-    document.getElementById('dash-charges').innerText = '⚡'.repeat(this.player.dashes);
+    const cdDash = document.getElementById('cd-dash');
+    if (cdDash) cdDash.style.height = `${(this.player.dashCdTimer / this.player.dashCd) * 100}%`;
+    const dashChg = document.getElementById('dash-charges');
+    if (dashChg) dashChg.innerText = '⚡'.repeat(this.player.dashes);
 
-    document.getElementById('cd-skill1').style.height = `${(this.player.cdSkill1 / this.player.skills.skill1.cd) * 100}%`;
-    document.getElementById('cd-skill2').style.height = `${(this.player.cdSkill2 / this.player.skills.skill2.cd) * 100}%`;
-    document.getElementById('cd-ult').style.height = `${(this.player.cdUlt / this.player.skills.ult.cd) * 100}%`;
+    const cdSk1 = document.getElementById('cd-skill1');
+    if (cdSk1) cdSk1.style.height = `${(this.player.cdSkill1 / this.player.skills.skill1.cd) * 100}%`;
+    const cdSk2 = document.getElementById('cd-skill2');
+    if (cdSk2) cdSk2.style.height = `${(this.player.cdSkill2 / this.player.skills.skill2.cd) * 100}%`;
+    const cdUlt = document.getElementById('cd-ult');
+    if (cdUlt) cdUlt.style.height = `${(this.player.cdUlt / this.player.skills.ult.cd) * 100}%`;
 
-    // Boss Bar
     const boss = this.enemies.find(e => e.isBoss);
     if (boss) {
       document.getElementById('boss-hp-fill').style.width = `${Math.max(0, (boss.hp / boss.maxHp) * 100)}%`;
@@ -577,10 +624,8 @@ class AbyssalGameEngine {
     this.player.update(dt, moveX, moveY, this.dungeon.currentRoom);
     this.checkDoorWarps();
 
-    // Auto spawn enemies if room is active
     this.spawnEnemiesForRoom(this.dungeon.currentRoom);
 
-    // Update Enemies
     for (let i = this.enemies.length - 1; i >= 0; i--) {
       const e = this.enemies[i];
       e.update(dt, this.player, this.projectiles);
@@ -590,7 +635,6 @@ class AbyssalGameEngine {
       }
     }
 
-    // Update Projectiles
     for (let i = this.projectiles.length - 1; i >= 0; i--) {
       const p = this.projectiles[i];
       p.update(dt);
@@ -619,7 +663,6 @@ class AbyssalGameEngine {
       }
     }
 
-    // Update Dungeon & Particles
     const res = this.dungeon.update(dt, this.player, this.enemies);
     if (res === 'ROOM_CLEARED') {
       this.presentBoons();
@@ -633,13 +676,11 @@ class AbyssalGameEngine {
 
     this.updateHUD();
 
-    // Camera follow player
-    const targetCamX = this.player.x - this.canvas.width / 2;
-    const targetCamY = this.player.y - this.canvas.height / 2;
+    const targetCamX = this.player.x - (this.viewportWidth || this.canvas.width) / 2;
+    const targetCamY = this.player.y - (this.viewportHeight || this.canvas.height) / 2;
     this.camera.x += (targetCamX - this.camera.x) * 0.12;
     this.camera.y += (targetCamY - this.camera.y) * 0.12;
 
-    // Apply Screen Shake
     if (window.abyssParticles.screenShake > 0) {
       this.camera.x += (Math.random() - 0.5) * window.abyssParticles.screenShake;
       this.camera.y += (Math.random() - 0.5) * window.abyssParticles.screenShake;
@@ -658,7 +699,9 @@ class AbyssalGameEngine {
       projectiles.forEach(p => p.render(ctx, camera));
       player.render(ctx, camera);
 
-      dungeon.renderMinimap(this.minimapCanvas);
+      if (this.minimapCanvas && window.innerWidth > 640) {
+        dungeon.renderMinimap(this.minimapCanvas);
+      }
     }
   }
 }

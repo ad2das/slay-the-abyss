@@ -2,10 +2,12 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>ABYSSAL SLAYER: 몰락자의 승천 (Ascent of the Fallen)</title>
   <link rel="stylesheet" href="style.css">
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Noto+Sans+KR:wght@400;700;900&family=MedievalSharp&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet">
 </head>
 <body>
   <div id="game-container">
@@ -51,12 +53,12 @@
         </div>
         <div class="stat-badge floor-badge">
           <span class="badge-icon">🏰</span>
-          <span id="hud-floor">1F - 심연의 입구</span>
+          <span id="hud-floor">1F - 심연</span>
         </div>
       </div>
 
-      <div class="minimap-box">
-        <canvas id="minimapCanvas" width="120" height="120"></canvas>
+      <div class="minimap-box" id="minimap-container">
+        <canvas id="minimapCanvas" width="90" height="90"></canvas>
       </div>
     </div>
 
@@ -78,7 +80,7 @@
     <div id="fx-vignette" class="fx-vignette"></div>
     <div id="fx-flash" class="fx-flash"></div>
 
-    <!-- Bottom Skill Hotbar (Desktop & Controls) -->
+    <!-- Bottom Skill Hotbar (Desktop Controls) -->
     <div id="hud-bottom" class="hud-layer">
       <div class="skill-hotbar">
         <div class="skill-slot" id="slot-attack" data-key="LMB / Z">
@@ -110,19 +112,21 @@
       </div>
     </div>
 
-    <!-- Mobile Virtual Gamepad -->
+    <!-- Mobile Virtual Gamepad (Floating Dynamic Joystick + Action Arc) -->
     <div id="mobile-touch-controls">
-      <div id="touch-joystick-zone">
-        <div id="joystick-base">
-          <div id="joystick-thumb"></div>
+      <div id="touch-joystick-toucharea">
+        <div id="floating-joystick" class="hidden">
+          <div id="joystick-base">
+            <div id="joystick-thumb"></div>
+          </div>
         </div>
       </div>
       <div id="touch-actions-zone">
-        <button class="t-btn btn-dash" id="tbtn-dash">💨</button>
-        <button class="t-btn btn-atk" id="tbtn-atk">⚔️</button>
-        <button class="t-btn btn-sk1" id="tbtn-sk1">Q</button>
-        <button class="t-btn btn-sk2" id="tbtn-sk2">E</button>
-        <button class="t-btn btn-ult" id="tbtn-ult">R</button>
+        <button class="t-btn btn-dash" id="tbtn-dash" aria-label="Dash">💨</button>
+        <button class="t-btn btn-atk" id="tbtn-atk" aria-label="Attack">⚔️</button>
+        <button class="t-btn btn-sk1" id="tbtn-sk1" aria-label="Skill 1">Q</button>
+        <button class="t-btn btn-sk2" id="tbtn-sk2" aria-label="Skill 2">E</button>
+        <button class="t-btn btn-ult" id="tbtn-ult" aria-label="Ultimate">R</button>
       </div>
     </div>
 
@@ -132,73 +136,79 @@
     <!-- MODAL: Class Select & Title Screen -->
     <div id="modal-title" class="abyss-modal active">
       <div class="modal-backdrop"></div>
-      <div class="title-content">
-        <div class="title-glow"></div>
-        <h1 class="game-title">ABYSSAL SLAYER</h1>
-        <p class="game-subtitle">몰락자의 승천 • ASCENT OF THE FALLEN</p>
+      <div class="modal-scroll-wrapper">
+        <div class="title-content">
+          <div class="title-glow"></div>
+          <h1 class="game-title">ABYSSAL SLAYER</h1>
+          <p class="game-subtitle">몰락자의 승천 • ASCENT OF THE FALLEN</p>
 
-        <div class="class-selection-container">
-          <h2 class="section-title">영웅의 운명을 선택하십시오</h2>
-          <div class="class-cards">
-            <!-- Shadow Blade -->
-            <div class="class-card selected" data-class="shadow_blade">
-              <div class="class-card-icon">🗡️</div>
-              <h3 class="class-title">섀도우 블레이드</h3>
-              <p class="class-role">민첩형 쾌속 암살자</p>
-              <div class="class-stats">
-                <div>공격속도 ★★★★★</div>
-                <div>치명타율 ★★★★☆</div>
-                <div>생존체력 ★★☆☆☆</div>
+          <div class="class-selection-container">
+            <h2 class="section-title">영웅의 운명을 선택하십시오</h2>
+            <div class="class-cards">
+              <!-- Shadow Blade -->
+              <div class="class-card selected" data-class="shadow_blade">
+                <div class="class-card-header">
+                  <div class="class-card-icon">🗡️</div>
+                  <div>
+                    <h3 class="class-title">섀도우 블레이드</h3>
+                    <p class="class-role">민첩형 쾌속 암살자</p>
+                  </div>
+                </div>
+                <div class="class-stats">
+                  <div>공격속도 ★★★★★ | 치명타율 ★★★★☆</div>
+                </div>
+                <ul class="class-features">
+                  <li>• 3단 그림자 참격 & 3연 수리검 투척</li>
+                  <li>• 그림자 분신 소환 & 잔상 무적 대시</li>
+                  <li>• 궁극기: [어비스 익스큐션] 시공 참격</li>
+                </ul>
+                <button class="btn-select-hero">선택 완료</button>
               </div>
-              <ul class="class-features">
-                <li>• 3단 연속 그림자 베기 & 원거리 수리검</li>
-                <li>• 그림자 분신 소환 & 잔상 관통 대시</li>
-                <li>• 궁극기: [어비스 익스큐션] 시공 참격</li>
-              </ul>
-              <button class="btn-select-hero">선택 완료</button>
-            </div>
 
-            <!-- Arcane Pyromancer -->
-            <div class="class-card" data-class="pyromancer">
-              <div class="class-card-icon">🔮</div>
-              <h3 class="class-title">아케인 파이로</h3>
-              <p class="class-role">광역 화염 마도사</p>
-              <div class="class-stats">
-                <div>스킬위력 ★★★★★</div>
-                <div>공격범위 ★★★★★</div>
-                <div>생존체력 ★★☆☆☆</div>
+              <!-- Arcane Pyromancer -->
+              <div class="class-card" data-class="pyromancer">
+                <div class="class-card-header">
+                  <div class="class-card-icon">🔮</div>
+                  <div>
+                    <h3 class="class-title">아케인 파이로</h3>
+                    <p class="class-role">광역 화염 마도사</p>
+                  </div>
+                </div>
+                <div class="class-stats">
+                  <div>스킬위력 ★★★★★ | 공격범위 ★★★★★</div>
+                </div>
+                <ul class="class-features">
+                  <li>• 광역 화염 작열탄 & 서리 노바 빙결</li>
+                  <li>• 궁극기: [메테오 스트라이크] 4연속 폭격</li>
+                </ul>
+                <button class="btn-select-hero">선택하기</button>
               </div>
-              <ul class="class-features">
-                <li>• 유도 마력탄 & 광역 화염 폭발구</li>
-                <li>• 서리 노바 빙결 & 연쇄 번개 방전</li>
-                <li>• 궁극기: [대재앙의 메테오 스트라이크]</li>
-              </ul>
-              <button class="btn-select-hero">선택하기</button>
-            </div>
 
-            <!-- Blood Berserker -->
-            <div class="class-card" data-class="berserker">
-              <div class="class-card-icon">🪓</div>
-              <h3 class="class-title">블러드 버서커</h3>
-              <p class="class-role">파괴형 흡혈 전사</p>
-              <div class="class-stats">
-                <div>근접타격 ★★★★★</div>
-                <div>생존체력 ★★★★★</div>
-                <div>공격속도 ★★☆☆☆</div>
+              <!-- Blood Berserker -->
+              <div class="class-card" data-class="berserker">
+                <div class="class-card-header">
+                  <div class="class-card-icon">🪓</div>
+                  <div>
+                    <h3 class="class-title">블러드 버서커</h3>
+                    <p class="class-role">파괴형 흡혈 전사</p>
+                  </div>
+                </div>
+                <div class="class-stats">
+                  <div>근접타격 ★★★★★ | 생존체력 ★★★★★</div>
+                </div>
+                <ul class="class-features">
+                  <li>• 대검 휠윈드 & 지진 충격파 분출</li>
+                  <li>• 궁극기: [아수라 광폭화] 50% 흡혈 불멸</li>
+                </ul>
+                <button class="btn-select-hero">선택하기</button>
               </div>
-              <ul class="class-features">
-                <li>• 대검 회전 베기 & 지진 충격파</li>
-                <li>• 피의 광폭화 & 치명타 흡혈 회복</li>
-                <li>• 궁극기: [불멸의 아수라 맹공]</li>
-              </ul>
-              <button class="btn-select-hero">선택하기</button>
             </div>
           </div>
-        </div>
 
-        <div class="title-action-bar">
-          <button id="btn-start-run" class="btn-abyss-primary glow-btn">심연 토벌 시작 (ENTER)</button>
-          <button id="btn-open-sanctuary" class="btn-abyss-secondary">안식처 영구 강화 (SANCTUARY)</button>
+          <div class="title-action-bar">
+            <button id="btn-start-run" class="btn-abyss-primary glow-btn">심연 토벌 시작 (START)</button>
+            <button id="btn-open-sanctuary" class="btn-abyss-secondary">안식처 강화 (SANCTUARY)</button>
+          </div>
         </div>
       </div>
     </div>
@@ -206,18 +216,20 @@
     <!-- MODAL: Sanctuary Permanent Upgrades -->
     <div id="modal-sanctuary" class="abyss-modal hidden">
       <div class="modal-backdrop"></div>
-      <div class="modal-panel sanctuary-panel">
-        <div class="panel-header">
-          <h2>🏛️ 몰락한 자들의 안식처 (Sanctuary of the Fallen)</h2>
-          <div class="soul-bank">보유 영혼: <strong id="sanctuary-soul-val">0</strong> 💜</div>
-          <button class="btn-close-modal" id="btn-close-sanctuary">✕</button>
-        </div>
-        <p class="panel-desc">토벌 중 수확한 영혼 정수로 모든 영웅의 영구 능력을 개방하십시오.</p>
-        
-        <div class="talents-grid" id="sanctuary-talents-container"></div>
+      <div class="modal-scroll-wrapper">
+        <div class="modal-panel sanctuary-panel">
+          <div class="panel-header">
+            <h2>🏛️ 몰락한 자들의 안식처 (Sanctuary)</h2>
+            <div class="soul-bank">보유 영혼: <strong id="sanctuary-soul-val">0</strong> 💜</div>
+            <button class="btn-close-modal" id="btn-close-sanctuary">✕</button>
+          </div>
+          <p class="panel-desc">토벌 중 수확한 영혼 정수로 모든 영웅의 영구 능력을 개방하십시오.</p>
+          
+          <div class="talents-grid" id="sanctuary-talents-container"></div>
 
-        <div class="panel-footer">
-          <button class="btn-abyss-primary" id="btn-sanctuary-done">강화 완료 & 복귀</button>
+          <div class="panel-footer">
+            <button class="btn-abyss-primary" id="btn-sanctuary-done">강화 완료 & 복귀</button>
+          </div>
         </div>
       </div>
     </div>
@@ -225,19 +237,21 @@
     <!-- MODAL: Hades-Style Boon Selection -->
     <div id="modal-boon" class="abyss-modal hidden">
       <div class="modal-backdrop"></div>
-      <div class="modal-panel boon-panel">
-        <div class="boon-god-header">
-          <div class="god-icon" id="boon-god-icon">⚡</div>
-          <div>
-            <h2 id="boon-god-name">천둥의 군주 - 제피로스</h2>
-            <p id="boon-god-quote">"심연의 악귀들에게 벼락의 심판을 내리거라."</p>
+      <div class="modal-scroll-wrapper">
+        <div class="modal-panel boon-panel">
+          <div class="boon-god-header">
+            <div class="god-icon" id="boon-god-icon">⚡</div>
+            <div>
+              <h2 id="boon-god-name">천둥의 군주 - 제피로스</h2>
+              <p id="boon-god-quote">"심연의 악귀들에게 벼락의 심판을 내리거라."</p>
+            </div>
           </div>
-        </div>
-        
-        <div class="boon-cards-row" id="boon-cards-container"></div>
+          
+          <div class="boon-cards-row" id="boon-cards-container"></div>
 
-        <div class="boon-footer">
-          <button id="btn-reroll-boon" class="btn-reroll">🎲 다시 뽑기 (남은 횟수: <span id="reroll-count">1</span>)</button>
+          <div class="boon-footer">
+            <button id="btn-reroll-boon" class="btn-reroll">🎲 다시 뽑기 (남은 횟수: <span id="reroll-count">1</span>)</button>
+          </div>
         </div>
       </div>
     </div>
@@ -245,34 +259,38 @@
     <!-- MODAL: Abyssal Merchant Shop -->
     <div id="modal-shop" class="abyss-modal hidden">
       <div class="modal-backdrop"></div>
-      <div class="modal-panel shop-panel">
-        <div class="panel-header">
-          <h2>⚖️ 심연의 방랑 상인 (Abyssal Trader)</h2>
-          <div class="gold-bank">보유 골드: <strong id="shop-gold-val">0</strong> 💰</div>
-          <button class="btn-close-modal" id="btn-close-shop">✕</button>
+      <div class="modal-scroll-wrapper">
+        <div class="modal-panel shop-panel">
+          <div class="panel-header">
+            <h2>⚖️ 심연의 방랑 상인 (Merchant)</h2>
+            <div class="gold-bank">보유 골드: <strong id="shop-gold-val">0</strong> 💰</div>
+            <button class="btn-close-modal" id="btn-close-shop">✕</button>
+          </div>
+          <p class="panel-desc">생존을 위한 비약과 고대 유물을 구매하십시오.</p>
+          <div class="shop-items-grid" id="shop-items-container"></div>
         </div>
-        <p class="panel-desc">생존을 위한 비약과 고대 유물을 구매하십시오.</p>
-        <div class="shop-items-grid" id="shop-items-container"></div>
       </div>
     </div>
 
     <!-- MODAL: Victory / Defeat Screen -->
     <div id="modal-end" class="abyss-modal hidden">
       <div class="modal-backdrop"></div>
-      <div class="modal-panel end-panel">
-        <h1 id="end-title" class="end-title">DEFEAT</h1>
-        <p id="end-subtitle" class="end-subtitle">심연의 어둠이 영혼을 집어삼켰습니다.</p>
-        
-        <div class="end-stats-box">
-          <div class="stat-line"><span>도달한 층수</span><strong id="end-floor">1F</strong></div>
-          <div class="stat-line"><span>처치한 마물</span><strong id="end-kills">0 마리</strong></div>
-          <div class="stat-line"><span>가한 총 피해량</span><strong id="end-damage">0</strong></div>
-          <div class="stat-line"><span>수확한 영혼 정수</span><strong id="end-souls">+0 💜</strong></div>
-          <div class="stat-line"><span>생존 시간</span><strong id="end-time">00:00</strong></div>
-        </div>
+      <div class="modal-scroll-wrapper">
+        <div class="modal-panel end-panel">
+          <h1 id="end-title" class="end-title">DEFEAT</h1>
+          <p id="end-subtitle" class="end-subtitle">심연의 어둠이 영혼을 집어삼켰습니다.</p>
+          
+          <div class="end-stats-box">
+            <div class="stat-line"><span>도달한 층수</span><strong id="end-floor">1F</strong></div>
+            <div class="stat-line"><span>처치한 마물</span><strong id="end-kills">0 마리</strong></div>
+            <div class="stat-line"><span>가한 총 피해량</span><strong id="end-damage">0</strong></div>
+            <div class="stat-line"><span>수확한 영혼 정수</span><strong id="end-souls">+0 💜</strong></div>
+            <div class="stat-line"><span>생존 시간</span><strong id="end-time">00:00</strong></div>
+          </div>
 
-        <div class="end-actions">
-          <button id="btn-return-hub" class="btn-abyss-primary glow-btn">안식처로 귀환하기</button>
+          <div class="end-actions">
+            <button id="btn-return-hub" class="btn-abyss-primary glow-btn">안식처로 귀환하기</button>
+          </div>
         </div>
       </div>
     </div>
