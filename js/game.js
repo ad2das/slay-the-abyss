@@ -1,624 +1,506 @@
 /* ==========================================================================
-   BALATRO WEB - MASTER GAME LOOP & STATE ORCHESTRATOR
+   SUNNYVALE MEADOW - MASTER GAME ENGINE & MOBILE TOUCH CONTROLLER
    ========================================================================== */
 
-class BalatroGame {
+class SunnyvaleGame {
   constructor() {
-    this.deck = [];
-    this.drawPile = [];
-    this.hand = [];
-    this.discardPile = [];
-    this.selectedCards = new Set();
-    
-    this.jokers = [];
-    this.consumables = [];
-    
-    this.ante = 1;
-    this.round = 1;
-    this.money = 4;
-    
-    this.handsRemaining = 4;
-    this.discardsRemaining = 3;
-    this.handSize = 8;
-    this.roundScore = 0;
-    this.targetScore = 300;
-    this.currentBlindType = 'small';
-    this.currentBlindData = null;
+    this.canvas = document.getElementById('farmCanvas');
+    this.renderer = new FarmRenderer(this.canvas);
+    this.farm = new FarmMap(24, 24, 48);
+    this.fishing = new FishingManager(this);
 
-    this.handLevels = {};
-    Object.keys(PokerHandEvaluator.HAND_BASE_STATS).forEach(h => this.handLevels[h] = 1);
-    this.handsPlayedThisRoundHistory = [];
-    
-    this.scoringEngine = new ScoringEngine(this);
-    this.shopRerollCost = 5;
+    // Player
+    this.player = {
+      x: 200,
+      y: 200,
+      speed: 2.8,
+      isMoving: false,
+      vx: 0,
+      vy: 0
+    };
+
+    this.camera = { x: 0, y: 0 };
+
+    // Stats & Time
+    this.gold = 500;
+    this.energy = 100;
+    this.maxEnergy = 100;
+    this.day = 1;
+    this.season = '봄 (Spring)';
+    this.timeMinutes = 360; // 6:00 AM (360 mins)
+    this.timeSpeed = 0.5; // In-game minute per tick
+
+    // Tools & Inventory
+    this.hotbarTools = [
+      { id: 'tool_hoe', name: '호미 (Hoe)', icon: '🚜', desc: '풀밭을 갈아 밭을 일굽니다.' },
+      { id: 'tool_can', name: '물뿌리개 (Can)', icon: '💧', desc: '말라 있는 밭에 물을 줍니다.' },
+      { id: 'tool_basket', name: '수확 바구니 (Basket)', icon: '🧺', desc: '다 자란 작물을 수확합니다.' },
+      { id: 'tool_feed', name: '가축 사료 (Feed)', icon: '🌾', desc: '동물에게 먹이를 주고 쓰다듬습니다.' },
+      { id: 'tool_rod', name: '낚싯대 (Rod)', icon: '🎣', desc: '연못에서 물고기를 낚습니다.' }
+    ];
+    this.activeToolIndex = 0;
+
+    this.inventory = [
+      { id: 'seed_strawberry', name: '딸기 씨앗', icon: '🍓', type: 'seed', cropId: 'strawberry', count: 5 },
+      { id: 'seed_carrot', name: '당근 씨앗', icon: '🥕', type: 'seed', cropId: 'carrot', count: 5 }
+    ];
+
+    this.shippingBin = [];
+    this.keys = {};
+    this.joystick = { active: false, dx: 0, dy: 0 };
 
     this.setupInputs();
-    this.startNewGame();
-  }
-
-  startNewGame() {
-    window.balatroAudio.init();
-    window.balatroAudio.startLoFiBGM();
-
-    this.deck = DeckManager.createStandardDeck();
-    this.jokers = [
-      new JokerInstance(JOKER_DATABASE.find(j => j.id === 'joker'))
-    ];
-    this.consumables = [];
-    this.ante = 1;
-    this.round = 1;
-    this.money = 4;
-    this.shopRerollCost = 5;
-
-    this.showBlindSelect();
-  }
-
-  showBlindSelect() {
-    const modal = document.getElementById('screen-blind-select');
-    modal.classList.add('active');
-    document.getElementById('bs-ante-num').innerText = this.ante;
-
-    // Small Blind
-    const smallData = BlindManager.getBlindData(this.ante, 'small');
-    document.getElementById('bc-small-score').innerText = smallData.score;
-
-    // Big Blind
-    const bigData = BlindManager.getBlindData(this.ante, 'big');
-    document.getElementById('bc-big-score').innerText = bigData.score;
-
-    // Boss Blind
-    const bossData = BlindManager.getBlindData(this.ante, 'boss');
-    document.getElementById('bc-boss-score').innerText = bossData.score;
-    document.getElementById('bc-boss-name').innerText = bossData.bossData.name;
-    document.getElementById('bc-boss-desc').innerText = bossData.bossData.desc;
-    document.getElementById('bc-boss-icon').innerText = bossData.bossData.icon;
-  }
-
-  startRound(blindType) {
-    this.currentBlindType = blindType;
-    this.currentBlindData = BlindManager.getBlindData(this.ante, blindType);
-    this.targetScore = this.currentBlindData.score;
-    this.roundScore = 0;
-    this.handsRemaining = 4;
-    this.discardsRemaining = 3;
-    this.handsPlayedThisRoundHistory = [];
-    this.selectedCards.clear();
-
-    // Close Blind Select Modal
-    document.getElementById('screen-blind-select').classList.remove('active');
-
-    // Update Left Sidebar
-    document.getElementById('sb-blind-name').innerText = this.currentBlindData.name.toUpperCase();
-    document.getElementById('sb-target-score').innerText = this.targetScore;
-    document.getElementById('sb-blind-reward').innerText = `$${this.currentBlindData.reward}`;
-    document.getElementById('sb-current-score').innerText = '0';
-    document.getElementById('sb-score-fill').style.width = '0%';
-    document.getElementById('sb-ante-text').innerText = `${this.ante} / 8`;
-    document.getElementById('sb-round-text').innerText = this.round;
-    document.getElementById('sb-money-text').innerText = `$${this.money}`;
-
-    // Boss debuff tag
-    const debuffEl = document.getElementById('sb-boss-debuff');
-    if (this.currentBlindData.bossData) {
-      debuffEl.classList.remove('hidden');
-      debuffEl.innerText = this.currentBlindData.bossData.desc;
-    } else {
-      debuffEl.classList.add('hidden');
-    }
-
-    // Reset deck cards & shuffle
-    this.drawPile = [...this.deck];
-    this.drawPile.forEach(c => {
-      c.debuffed = false;
-      if (this.currentBlindData.bossData && this.currentBlindData.bossData.applyDebuff) {
-        this.currentBlindData.bossData.applyDebuff(c);
-      }
-    });
-    this.shuffle(this.drawPile);
-    this.hand = [];
-    this.discardPile = [];
-
-    // Draw Starting Hand (8 Cards)
-    this.drawCards(this.handSize);
-    this.updateHUD();
-  }
-
-  shuffle(array) {
-    for (let i = array.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [array[i], array[j]] = [array[j], array[i]];
-    }
-  }
-
-  drawCards(count) {
-    for (let i = 0; i < count; i++) {
-      if (this.hand.length >= this.handSize) break;
-      if (this.drawPile.length === 0) break;
-
-      const card = this.drawPile.pop();
-      this.hand.push(card);
-      window.balatroAudio.playSFX('card_draw');
-    }
-    this.renderHand();
+    this.setupUI();
+    this.startLoop();
   }
 
   setupInputs() {
-    // Play Hand Button
-    document.getElementById('btn-play-hand').addEventListener('click', () => {
-      this.playSelectedHand();
+    // Keyboard WASD / Arrows
+    window.addEventListener('keydown', (e) => {
+      this.keys[e.code] = true;
+    });
+    window.addEventListener('keyup', (e) => {
+      this.keys[e.code] = false;
     });
 
-    // Discard Button
-    document.getElementById('btn-discard-hand').addEventListener('click', () => {
-      this.discardSelectedCards();
+    // Canvas Direct Tap / Click for Tile Interaction
+    this.canvas.addEventListener('click', (e) => {
+      const rect = this.canvas.getBoundingClientRect();
+      const clickX = e.clientX - rect.left + this.camera.x;
+      const clickY = e.clientY - rect.top + this.camera.y;
+      this.handleTileClick(clickX, clickY);
     });
 
-    // Sort by Rank
-    document.getElementById('btn-sort-rank').addEventListener('click', () => {
-      this.hand.sort((a, b) => (RANK_ORDERS[b.rank] || 0) - (RANK_ORDERS[a.rank] || 0));
-      this.renderHand();
-      window.balatroAudio.playSFX('card_select');
+    // Virtual Joystick Touch Setup (Mobile)
+    const zone = document.getElementById('joystick-zone');
+    const knob = document.getElementById('joystick-knob');
+    let startX = 0, startY = 0;
+
+    zone.addEventListener('touchstart', (e) => {
+      const touch = e.touches[0];
+      startX = touch.clientX;
+      startY = touch.clientY;
+      this.joystick.active = true;
     });
 
-    // Sort by Suit
-    document.getElementById('btn-sort-suit').addEventListener('click', () => {
-      this.hand.sort((a, b) => a.suit.localeCompare(b.suit));
-      this.renderHand();
-      window.balatroAudio.playSFX('card_select');
+    zone.addEventListener('touchmove', (e) => {
+      if (!this.joystick.active) return;
+      const touch = e.touches[0];
+      const dx = touch.clientX - startX;
+      const dy = touch.clientY - startY;
+      const dist = Math.hypot(dx, dy);
+      const maxDist = 35;
+
+      const angle = Math.atan2(dy, dx);
+      const clampedDist = Math.min(dist, maxDist);
+      const knobX = Math.cos(angle) * clampedDist;
+      const knobY = Math.sin(angle) * clampedDist;
+
+      knob.style.transform = `translate(${knobX}px, ${knobY}px)`;
+      this.joystick.dx = knobX / maxDist;
+      this.joystick.dy = knobY / maxDist;
     });
 
-    // Select Blind Buttons
-    document.querySelectorAll('.btn-select-blind').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const type = btn.dataset.blind;
-        this.startRound(type);
-      });
-    });
+    const resetJoystick = () => {
+      this.joystick.active = false;
+      this.joystick.dx = 0;
+      this.joystick.dy = 0;
+      knob.style.transform = 'translate(0px, 0px)';
+    };
 
-    // Skip Blind Buttons
-    document.querySelectorAll('.btn-skip-blind').forEach(btn => {
-      btn.addEventListener('click', () => {
-        window.balatroAudio.playSFX('buy_item');
-        this.money += 5;
-        this.startRound('boss');
-      });
-    });
-
-    // Shop Reroll
-    document.getElementById('btn-reroll-shop').addEventListener('click', () => {
-      if (this.money >= this.shopRerollCost) {
-        this.money -= this.shopRerollCost;
-        this.shopRerollCost += 1;
-        window.balatroAudio.playSFX('buy_item');
-        this.populateShop();
-      }
-    });
-
-    // Shop Next Round
-    document.getElementById('btn-next-round').addEventListener('click', () => {
-      document.getElementById('screen-shop').classList.remove('active');
-      if (this.currentBlindType === 'boss') {
-        this.ante++;
-        if (this.ante > 8) {
-          this.triggerGameEnd(true);
-          return;
-        }
-      }
-      this.round++;
-      this.showBlindSelect();
-    });
-
-    // Play Again Button
-    document.getElementById('btn-play-again').addEventListener('click', () => {
-      document.getElementById('screen-game-end').classList.remove('active');
-      this.startNewGame();
-    });
-
-    // View Deck Button
-    document.getElementById('btn-view-deck').addEventListener('click', () => {
-      this.openDeckViewer();
-    });
-    document.getElementById('btn-close-deck-view').addEventListener('click', () => {
-      document.getElementById('screen-deck-view').classList.remove('active');
-    });
+    zone.addEventListener('touchend', resetJoystick);
+    zone.addEventListener('touchcancel', resetJoystick);
   }
 
-  renderHand() {
-    const container = document.getElementById('cards-hand-container');
+  setupUI() {
+    // Top Floating Actions
+    document.getElementById('btn-open-shop').addEventListener('click', () => this.openShop());
+    document.getElementById('btn-open-inventory').addEventListener('click', () => this.openInventory());
+    document.getElementById('btn-sleep-bed').addEventListener('click', () => this.advanceDay());
+
+    // Close Modal Buttons
+    document.querySelectorAll('.btn-close-sheet').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const modalId = btn.dataset.modal;
+        document.getElementById(modalId).classList.remove('active');
+        setTimeout(() => document.getElementById(modalId).classList.add('hidden'), 250);
+      });
+    });
+
+    // Shop Tabs
+    document.querySelectorAll('.shop-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.shop-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        ShopManager.populateGoods(tab.dataset.tab, document.getElementById('shop-goods-container'), this);
+      });
+    });
+
+    // Daily Summary Next Day Button
+    document.getElementById('btn-start-next-day').addEventListener('click', () => {
+      document.getElementById('modal-shipping-summary').classList.add('hidden');
+    });
+
+    this.renderHotbar();
+    this.updateHUD();
+  }
+
+  renderHotbar() {
+    const container = document.getElementById('hotbar-slots');
     container.innerHTML = '';
-    const total = this.hand.length;
 
-    this.hand.forEach((card, idx) => {
+    // Tools + Seeds in inventory
+    const allSlots = [...this.hotbarTools];
+    this.inventory.forEach(item => {
+      if (item.type === 'seed') {
+        allSlots.push({
+          id: item.id,
+          name: item.name,
+          icon: item.icon,
+          desc: `${item.name}을(를) 밭에 심습니다.`,
+          isSeed: true,
+          cropId: item.cropId,
+          count: item.count
+        });
+      }
+    });
+
+    allSlots.forEach((slot, idx) => {
       const el = document.createElement('div');
-      el.className = `playing-card suit-${card.suit} enh-${card.enhancement} ${this.selectedCards.has(card) ? 'selected' : ''}`;
-      
-      // Dynamic fanning layout
-      const mid = (total - 1) / 2;
-      const angle = (idx - mid) * 3.5;
-      const yOffset = Math.abs(idx - mid) * 6;
-      el.style.left = `${(idx / Math.max(1, total - 1)) * 75}%`;
-      el.style.transform = `rotate(${angle}deg) translateY(${yOffset}px)`;
-      el.style.zIndex = idx + 1;
-
+      el.className = `hotbar-slot ${this.activeToolIndex === idx ? 'active' : ''}`;
       el.innerHTML = `
-        <div class="card-corner top-corner">
-          <div class="card-rank">${card.rank}</div>
-          <div class="card-suit-mini">${SUIT_SYMBOLS[card.suit]}</div>
-        </div>
-        <div class="card-center-art">${SUIT_SYMBOLS[card.suit]}</div>
-        <div class="card-corner bottom-corner">
-          <div class="card-rank">${card.rank}</div>
-          <div class="card-suit-mini">${SUIT_SYMBOLS[card.suit]}</div>
-        </div>
+        <div class="tool-icon">${slot.icon}</div>
+        ${slot.count !== undefined ? `<div class="item-count-badge">${slot.count}</div>` : ''}
       `;
 
       el.addEventListener('click', () => {
-        if (this.scoringEngine.isScoring) return;
-
-        if (this.selectedCards.has(card)) {
-          this.selectedCards.delete(card);
-        } else {
-          if (this.selectedCards.size < 5) {
-            this.selectedCards.add(card);
-          }
-        }
-        window.balatroAudio.playSFX('card_select');
-        this.renderHand();
-        this.updateSelectedPreview();
+        this.activeToolIndex = idx;
+        document.querySelectorAll('.hotbar-slot').forEach(s => s.classList.remove('active'));
+        el.classList.add('active');
+        document.getElementById('hotbar-tool-name').innerText = `${slot.name} : ${slot.desc}`;
+        window.cozyAudio.playSFX('plant_seed');
       });
 
       container.appendChild(el);
     });
 
-    document.getElementById('deck-remain-count').innerText = this.drawPile.length;
-    this.updateSelectedPreview();
+    if (allSlots[this.activeToolIndex]) {
+      document.getElementById('hotbar-tool-name').innerText = `${allSlots[this.activeToolIndex].name} : ${allSlots[this.activeToolIndex].desc}`;
+    }
   }
 
-  updateSelectedPreview() {
-    const selected = Array.from(this.selectedCards);
-    const evalResult = PokerHandEvaluator.evaluate(selected);
-    const handLvl = this.handLevels[evalResult.handName] || 1;
-    document.getElementById('detected-hand-label').innerText = `${evalResult.handName.toUpperCase()} (Lv.${handLvl})`;
+  handleTileClick(worldX, worldY) {
+    const ts = this.farm.tileSize;
+    const tx = Math.floor(worldX / ts);
+    const ty = Math.floor(worldY / ts);
 
-    document.getElementById('play-hand-sub').innerText = `(${selected.length}/5 CARDS)`;
-    document.getElementById('discard-hand-sub').innerText = `(${selected.length}/5)`;
-  }
+    const tile = this.farm.getTile(tx, ty);
+    if (tile === null) return;
 
-  async playSelectedHand() {
-    if (this.scoringEngine.isScoring || this.selectedCards.size === 0 || this.handsRemaining <= 0) return;
-
-    const played = Array.from(this.selectedCards);
-    this.handsRemaining--;
-    this.selectedCards.clear();
-
-    // Remove played cards from hand and display in scoring arena
-    this.hand = this.hand.filter(c => !played.includes(c));
-    this.renderPlayedCards(played);
-    this.renderHand();
-    this.updateHUD();
-
-    // Boss blind OnHandPlayed hook (e.g. The Hook discards 2 cards)
-    if (this.currentBlindData.bossData && this.currentBlindData.bossData.onHandPlayed) {
-      this.currentBlindData.bossData.onHandPlayed(this);
-      this.renderHand();
+    // Check Petting Animals nearby
+    for (const a of this.farm.animals) {
+      if (Math.hypot(a.x - worldX, a.y - worldY) < 30) {
+        a.pet(this);
+        return;
+      }
     }
 
-    // Run Scoring Engine
-    await this.scoringEngine.runScoring(played, this.targetScore, (won) => {
-      document.getElementById('played-cards-holder').innerHTML = '';
+    // Check Shipping Bin Tap
+    if (tile === TILE_SHIPPING_BIN) {
+      this.openInventory();
+      this.showToast('출하할 작물을 선택해 주세요!');
+      return;
+    }
 
-      if (won) {
-        window.balatroAudio.playSFX('blind_defeat');
-        // Earn Money: Blind Reward + Remaining Hands as Interest
-        const earned = this.currentBlindData.reward + this.handsRemaining;
-        this.money += earned;
-        this.openShop();
+    // Check Fishing on Water Pond
+    if (tile === TILE_WATER) {
+      if (this.energy >= 5) {
+        this.energy -= 5;
+        this.updateHUD();
+        this.fishing.startFishing();
       } else {
-        if (this.handsRemaining <= 0) {
-          this.triggerGameEnd(false);
-        } else {
-          // Draw cards back up to hand size
-          this.drawCards(this.handSize - this.hand.length);
+        this.showToast('체력이 부족합니다!');
+      }
+      return;
+    }
+
+    const currentTool = this.getActiveTool();
+    if (!currentTool) return;
+
+    // 1. Hoe: Till Grass into Soil
+    if (currentTool.id === 'tool_hoe') {
+      if (tile === TILE_GRASS) {
+        if (this.energy >= 2) {
+          this.energy -= 2;
+          this.farm.setTile(tx, ty, TILE_SOIL_DRY);
+          window.cozyAudio.playSFX('till_soil');
+          this.showFloatingText(worldX, worldY - 10, '-2 Energy', '#64748b');
+          this.updateHUD();
         }
       }
-    });
-  }
+    }
 
-  renderPlayedCards(cards) {
-    const holder = document.getElementById('played-cards-holder');
-    holder.innerHTML = '';
-    cards.forEach(card => {
-      const el = document.createElement('div');
-      el.className = `playing-card suit-${card.suit} enh-${card.enhancement}`;
-      el.style.position = 'relative';
-      el.style.transform = 'none';
-      el.innerHTML = `
-        <div class="card-corner top-corner">
-          <div class="card-rank">${card.rank}</div>
-          <div class="card-suit-mini">${SUIT_SYMBOLS[card.suit]}</div>
-        </div>
-        <div class="card-center-art">${SUIT_SYMBOLS[card.suit]}</div>
-        <div class="card-corner bottom-corner">
-          <div class="card-rank">${card.rank}</div>
-          <div class="card-suit-mini">${SUIT_SYMBOLS[card.suit]}</div>
-        </div>
-      `;
-      holder.appendChild(el);
-    });
-  }
-
-  discardSelectedCards() {
-    if (this.scoringEngine.isScoring || this.selectedCards.size === 0 || this.discardsRemaining <= 0) return;
-
-    const count = this.selectedCards.size;
-    this.hand = this.hand.filter(c => !this.selectedCards.has(c));
-    this.selectedCards.clear();
-    this.discardsRemaining--;
-
-    window.balatroAudio.playSFX('card_play');
-    this.drawCards(count);
-    this.updateHUD();
-  }
-
-  updateHUD() {
-    document.getElementById('sb-hands-count').innerText = this.handsRemaining;
-    document.getElementById('sb-discards-count').innerText = this.discardsRemaining;
-    document.getElementById('sb-money-text').innerText = `$${this.money}`;
-    document.getElementById('joker-count-text').innerText = `${this.jokers.length}/5`;
-    document.getElementById('consumable-count-text').innerText = `${this.consumables.length}/2`;
-
-    this.renderTopDocks();
-  }
-
-  renderTopDocks() {
-    // 1. Jokers Dock
-    const jRow = document.getElementById('jokers-row');
-    jRow.innerHTML = '';
-    this.jokers.forEach(j => {
-      const el = document.createElement('div');
-      el.className = `joker-card edition-${j.edition}`;
-      el.innerHTML = `
-        <div class="joker-sprite-icon">${j.icon}</div>
-        <div class="joker-title-mini">${j.name}</div>
-        <div class="joker-cost-badge">$${j.cost}</div>
-      `;
-      el.title = `${j.name}: ${j.desc}`;
-      jRow.appendChild(el);
-    });
-
-    // 2. Consumables Dock
-    const cRow = document.getElementById('consumables-row');
-    cRow.innerHTML = '';
-    this.consumables.forEach((c, idx) => {
-      const el = document.createElement('div');
-      el.className = `joker-card`;
-      el.innerHTML = `
-        <div class="joker-sprite-icon">${c.icon}</div>
-        <div class="joker-title-mini">${c.name}</div>
-        <div class="joker-cost-badge">USE</div>
-      `;
-      el.title = `${c.name}: ${c.desc}`;
-      el.addEventListener('click', () => {
-        this.useConsumable(idx);
-      });
-      cRow.appendChild(el);
-    });
-  }
-
-  useConsumable(index) {
-    const item = this.consumables[index];
-    if (!item) return;
-
-    const selected = Array.from(this.selectedCards);
-    if (item.type === 'tarot') {
-      item.use(selected, this);
-      window.balatroAudio.playSFX('buy_item');
-      this.consumables.splice(index, 1);
-      this.renderHand();
-      this.updateHUD();
-    } else if (item.type === 'planet') {
-      if (this.handLevels[item.handTarget] !== undefined) {
-        this.handLevels[item.handTarget]++;
-        window.balatroAudio.playSFX('mult_x');
-        this.consumables.splice(index, 1);
-        this.updateHUD();
+    // 2. Watering Can: Water Soil
+    else if (currentTool.id === 'tool_can') {
+      if (tile === TILE_SOIL_DRY) {
+        if (this.energy >= 1) {
+          this.energy -= 1;
+          this.farm.setTile(tx, ty, TILE_SOIL_WATERED);
+          window.cozyAudio.playSFX('water_splash');
+          this.updateHUD();
+        }
       }
     }
+
+    // 3. Planting Seeds
+    else if (currentTool.isSeed) {
+      if ((tile === TILE_SOIL_DRY || tile === TILE_SOIL_WATERED) && !this.farm.crops[`${tx},${ty}`]) {
+        this.farm.crops[`${tx},${ty}`] = new CropInstance(currentTool.cropId);
+        window.cozyAudio.playSFX('plant_seed');
+
+        // Deduct seed from inventory
+        this.deductItem(currentTool.id);
+        this.renderHotbar();
+      }
+    }
+
+    // 4. Harvesting with Basket or Tap
+    else if (currentTool.id === 'tool_basket' || !currentTool) {
+      const crop = this.farm.crops[`${tx},${ty}`];
+      if (crop && crop.readyToHarvest) {
+        const harvested = crop.harvest();
+        if (harvested) {
+          window.cozyAudio.playSFX('harvest_pop');
+          this.addItemToInventory(harvested);
+          this.showFloatingText(worldX, worldY - 15, `+1 ${harvested.name}`, '#f59e0b');
+          if (!crop.def.regrows) {
+            delete this.farm.crops[`${tx},${ty}`];
+          }
+        }
+      }
+    }
+  }
+
+  getActiveTool() {
+    const allSlots = [...this.hotbarTools];
+    this.inventory.forEach(item => {
+      if (item.type === 'seed') {
+        allSlots.push({
+          id: item.id,
+          name: item.name,
+          icon: item.icon,
+          isSeed: true,
+          cropId: item.cropId,
+          count: item.count
+        });
+      }
+    });
+    return allSlots[this.activeToolIndex];
   }
 
   openShop() {
-    const modal = document.getElementById('screen-shop');
-    modal.classList.add('active');
-    document.getElementById('shop-money-val').innerText = `$${this.money}`;
-    document.getElementById('shop-reroll-cost').innerText = `($${this.shopRerollCost})`;
-
-    this.populateShop();
+    const modal = document.getElementById('modal-shop');
+    modal.classList.remove('hidden');
+    setTimeout(() => modal.classList.add('active'), 10);
+    ShopManager.populateGoods('seeds', document.getElementById('shop-goods-container'), this);
   }
 
-  populateShop() {
-    // 1. Cards Shelf (2 Jokers + 1 Tarot/Planet)
-    const cardsRow = document.getElementById('shop-cards-row');
-    cardsRow.innerHTML = '';
-
-    for (let i = 0; i < 2; i++) {
-      const randomJokerDef = JOKER_DATABASE[Math.floor(Math.random() * JOKER_DATABASE.length)];
-      const jokerInst = new JokerInstance(randomJokerDef);
-      
-      const el = document.createElement('div');
-      el.className = `joker-card`;
-      el.style.width = '100px';
-      el.style.height = '130px';
-      el.innerHTML = `
-        <div class="joker-sprite-icon" style="font-size:42px;">${jokerInst.icon}</div>
-        <div class="joker-title-mini">${jokerInst.name}</div>
-        <div class="joker-cost-badge" style="font-size:10px;">$${jokerInst.cost}</div>
-      `;
-
-      el.addEventListener('click', () => {
-        if (this.money >= jokerInst.cost && this.jokers.length < 5) {
-          this.money -= jokerInst.cost;
-          this.jokers.push(jokerInst);
-          window.balatroAudio.playSFX('buy_item');
-          el.style.opacity = '0.3';
-          el.style.pointerEvents = 'none';
-          document.getElementById('shop-money-val').innerText = `$${this.money}`;
-          this.updateHUD();
-        }
-      });
-
-      cardsRow.appendChild(el);
-    }
-
-    // 2. Packs Shelf (Buffoon Pack & Arcana Pack)
-    const packsRow = document.getElementById('shop-packs-row');
-    packsRow.innerHTML = `
-      <div class="joker-card" id="btn-buy-buffoon" style="width:130px; height:130px; border-color:#a855f7;">
-        <div style="font-size:42px;">🃏</div>
-        <div class="joker-title-mini">BUFFOON PACK</div>
-        <div class="joker-cost-badge" style="font-size:10px;">$4</div>
-      </div>
-      <div class="joker-card" id="btn-buy-arcana" style="width:130px; height:130px; border-color:#38bdf8;">
-        <div style="font-size:42px;">🔮</div>
-        <div class="joker-title-mini">ARCANA PACK</div>
-        <div class="joker-cost-badge" style="font-size:10px;">$4</div>
-      </div>
-    `;
-
-    document.getElementById('btn-buy-buffoon').addEventListener('click', () => {
-      if (this.money >= 4) {
-        this.money -= 4;
-        this.openBoosterPack('buffoon');
-      }
-    });
-
-    document.getElementById('btn-buy-arcana').addEventListener('click', () => {
-      if (this.money >= 4) {
-        this.money -= 4;
-        this.openBoosterPack('arcana');
-      }
-    });
+  openInventory() {
+    const modal = document.getElementById('modal-inventory');
+    modal.classList.remove('hidden');
+    setTimeout(() => modal.classList.add('active'), 10);
+    this.renderInventoryGrid();
   }
 
-  openBoosterPack(type) {
-    const modal = document.getElementById('screen-pack-open');
-    modal.classList.add('active');
-    const container = document.getElementById('pack-cards-container');
+  renderInventoryGrid() {
+    const container = document.getElementById('inventory-slots-container');
     container.innerHTML = '';
 
-    if (type === 'buffoon') {
-      document.getElementById('pack-open-title').innerText = 'BUFFOON PACK';
-      for (let i = 0; i < 2; i++) {
-        const jDef = JOKER_DATABASE[Math.floor(Math.random() * JOKER_DATABASE.length)];
-        const jInst = new JokerInstance(jDef);
-        const el = document.createElement('div');
-        el.className = 'joker-card';
-        el.style.width = '120px';
-        el.style.height = '160px';
-        el.innerHTML = `
-          <div style="font-size:48px;">${jInst.icon}</div>
-          <div class="joker-title-mini" style="font-size:16px;">${jInst.name}</div>
-          <p style="font-size:10px; color:#cbd5e1; text-align:center;">${jInst.desc}</p>
+    for (let i = 0; i < 24; i++) {
+      const item = this.inventory[i];
+      const slot = document.createElement('div');
+      slot.className = `inv-slot ${item ? 'has-item' : ''}`;
+
+      if (item) {
+        slot.innerHTML = `
+          <div class="inv-icon">${item.icon}</div>
+          <div class="item-count-badge">${item.count}</div>
         `;
-        el.addEventListener('click', () => {
-          if (this.jokers.length < 5) {
-            this.jokers.push(jInst);
-            window.balatroAudio.playSFX('buy_item');
-            modal.classList.remove('active');
-            this.updateHUD();
-          }
+        slot.addEventListener('click', () => {
+          document.querySelectorAll('.inv-slot').forEach(s => s.classList.remove('selected'));
+          slot.classList.add('selected');
+          document.getElementById('inv-item-info').innerText = `${item.name} (판매가: 🪙 ${item.sellPrice || 0} G)`;
+          this.selectedInvItem = item;
         });
-        container.appendChild(el);
       }
-    } else {
-      document.getElementById('pack-open-title').innerText = 'ARCANA PACK';
-      for (let i = 0; i < 3; i++) {
-        const tDef = TAROT_CARDS[Math.floor(Math.random() * TAROT_CARDS.length)];
-        const el = document.createElement('div');
-        el.className = 'joker-card';
-        el.style.width = '120px';
-        el.style.height = '160px';
-        el.innerHTML = `
-          <div style="font-size:48px;">${tDef.icon}</div>
-          <div class="joker-title-mini" style="font-size:16px;">${tDef.name}</div>
-          <p style="font-size:10px; color:#cbd5e1; text-align:center;">${tDef.desc}</p>
-        `;
-        el.addEventListener('click', () => {
-          if (this.consumables.length < 2) {
-            this.consumables.push(tDef);
-            window.balatroAudio.playSFX('buy_item');
-            modal.classList.remove('active');
-            this.updateHUD();
-          }
-        });
-        container.appendChild(el);
-      }
+
+      container.appendChild(slot);
     }
 
-    document.getElementById('btn-skip-pack').onclick = () => {
-      modal.classList.remove('active');
+    document.getElementById('btn-sell-to-shipping').onclick = () => {
+      if (this.selectedInvItem) {
+        this.shippingBin.push({ ...this.selectedInvItem });
+        this.deductItem(this.selectedInvItem.id, this.selectedInvItem.count);
+        this.selectedInvItem = null;
+        document.getElementById('inv-item-info').innerText = '출하 상자에 넣었습니다!';
+        window.cozyAudio.playSFX('coin');
+        this.renderInventoryGrid();
+        this.renderHotbar();
+      }
     };
   }
 
-  openDeckViewer() {
-    const modal = document.getElementById('screen-deck-view');
-    modal.classList.add('active');
-    document.getElementById('dv-card-count').innerText = this.deck.length;
-
-    const grid = document.getElementById('deck-view-grid');
-    grid.innerHTML = '';
-    grid.style.display = 'grid';
-    grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(90px, 1fr))';
-    grid.style.gap = '10px';
-
-    this.deck.forEach(card => {
-      const el = document.createElement('div');
-      el.className = `playing-card suit-${card.suit} enh-${card.enhancement}`;
-      el.style.position = 'relative';
-      el.style.transform = 'none';
-      el.style.width = '90px';
-      el.style.height = '130px';
-      el.innerHTML = `
-        <div class="card-corner top-corner">
-          <div class="card-rank">${card.rank}</div>
-          <div class="card-suit-mini">${SUIT_SYMBOLS[card.suit]}</div>
-        </div>
-        <div class="card-center-art">${SUIT_SYMBOLS[card.suit]}</div>
-        <div class="card-corner bottom-corner">
-          <div class="card-rank">${card.rank}</div>
-          <div class="card-suit-mini">${SUIT_SYMBOLS[card.suit]}</div>
-        </div>
-      `;
-      grid.appendChild(el);
-    });
+  addItemToInventory(item) {
+    const existing = this.inventory.find(i => i.id === item.id);
+    if (existing) {
+      existing.count += (item.count || 1);
+    } else {
+      this.inventory.push({ ...item, count: item.count || 1 });
+    }
+    this.renderHotbar();
   }
 
-  destroyJoker(jokerId) {
-    this.jokers = this.jokers.filter(j => j.id !== jokerId);
+  deductItem(itemId, count = 1) {
+    const idx = this.inventory.findIndex(i => i.id === itemId);
+    if (idx !== -1) {
+      this.inventory[idx].count -= count;
+      if (this.inventory[idx].count <= 0) {
+        this.inventory.splice(idx, 1);
+      }
+    }
+  }
+
+  advanceDay() {
+    // 1. Calculate Shipping Bin Revenue
+    let totalRev = 0;
+    const summaryList = document.getElementById('summary-items-list');
+    summaryList.innerHTML = '';
+
+    if (this.shippingBin.length > 0) {
+      this.shippingBin.forEach(item => {
+        const itemTotal = (item.sellPrice || 10) * item.count;
+        totalRev += itemTotal;
+        const row = document.createElement('div');
+        row.style.display = 'flex';
+        row.style.justifyContent = 'space-between';
+        row.style.margin = '4px 0';
+        row.innerHTML = `<span>${item.icon} ${item.name} x${item.count}</span><strong>+${itemTotal} G</strong>`;
+        summaryList.appendChild(row);
+      });
+    } else {
+      summaryList.innerHTML = '<p style="color:#94a3b8;">오늘 출하된 작물이 없습니다.</p>';
+    }
+
+    this.gold += totalRev;
+    this.shippingBin = [];
+    document.getElementById('summary-total-gold').innerText = `+${totalRev} G`;
+    document.getElementById('modal-shipping-summary').classList.remove('hidden');
+
+    // 2. Advance Farm Day & Recover Energy
+    this.day++;
+    this.timeMinutes = 360; // 6:00 AM
+    this.energy = this.maxEnergy;
+    this.farm.advanceDay(this);
+
+    window.cozyAudio.playSFX('coin');
     this.updateHUD();
   }
 
-  triggerGameEnd(victory) {
-    const modal = document.getElementById('screen-game-end');
-    modal.classList.add('active');
+  showToast(msg) {
+    const toast = document.getElementById('game-toast');
+    toast.innerText = msg;
+    toast.classList.remove('toast-hidden');
+    setTimeout(() => toast.classList.add('toast-hidden'), 2000);
+  }
 
-    const titleEl = document.getElementById('end-title');
-    if (victory) {
-      titleEl.className = 'end-title-victory';
-      titleEl.innerText = 'VICTORY! (ANTE 8 CONQUERED)';
-      document.getElementById('end-subtitle').innerText = '발라트로 첨탑의 모든 블라인드를 완벽하게 지배했습니다!';
+  showFloatingText(x, y, text, color) {
+    this.renderer.addText(x, y, text, color);
+  }
+
+  updateHUD() {
+    document.getElementById('hud-gold-text').innerText = `${this.gold} G`;
+    document.getElementById('hud-energy-text').innerText = `${this.energy} / ${this.maxEnergy}`;
+    document.getElementById('hud-energy-fill').style.width = `${(this.energy / this.maxEnergy) * 100}%`;
+    document.getElementById('hud-season-text').innerText = `${this.season} - ${this.day}일차`;
+
+    // Clock formatting
+    const hours = Math.floor(this.timeMinutes / 60);
+    const mins = Math.floor(this.timeMinutes % 60);
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    const dispHours = hours % 12 === 0 ? 12 : hours % 12;
+    document.getElementById('hud-clock-text').innerText = `${dispHours < 10 ? '0' : ''}${dispHours}:${mins < 10 ? '0' : ''}${mins} ${ampm}`;
+    document.getElementById('hud-time-fill').style.width = `${((this.timeMinutes - 360) / (1440 - 360)) * 100}%`;
+
+    // Ambient Lighting Filter by Time of Day
+    const ambient = document.getElementById('ambient-overlay');
+    if (hours >= 18 && hours < 20) {
+      // Golden Sunset
+      ambient.style.backgroundColor = 'rgba(251, 146, 60, 0.18)';
+    } else if (hours >= 20 || hours < 5) {
+      // Cozy Night with Glowing Lanterns
+      ambient.style.backgroundColor = 'rgba(15, 23, 42, 0.45)';
     } else {
-      titleEl.className = 'end-title-defeat';
-      titleEl.innerText = 'GAME OVER';
-      document.getElementById('end-subtitle').innerText = '블라인드 목표 점수를 달성하지 못했습니다.';
+      // Bright Sunshine
+      ambient.style.backgroundColor = 'rgba(0, 0, 0, 0)';
+    }
+  }
+
+  startLoop() {
+    window.cozyAudio.init();
+    window.cozyAudio.startPeacefulBGM();
+
+    const loop = () => {
+      this.update();
+      this.renderer.render(this);
+      requestAnimationFrame(loop);
+    };
+    requestAnimationFrame(loop);
+  }
+
+  update() {
+    // 1. Advance Clock
+    this.timeMinutes += 0.08;
+    if (this.timeMinutes >= 1440) {
+      this.advanceDay(); // Pass out and start next day!
+    }
+    this.updateHUD();
+
+    // 2. Player Movement (Joystick + WASD)
+    let mx = 0, my = 0;
+    if (this.keys['KeyW'] || this.keys['ArrowUp']) my -= 1;
+    if (this.keys['KeyS'] || this.keys['ArrowDown']) my += 1;
+    if (this.keys['KeyA'] || this.keys['ArrowLeft']) mx -= 1;
+    if (this.keys['KeyD'] || this.keys['ArrowRight']) mx += 1;
+
+    if (this.joystick.active) {
+      mx = this.joystick.dx;
+      my = this.joystick.dy;
     }
 
-    document.getElementById('end-ante-text').innerText = `Ante ${this.ante}`;
-    document.getElementById('end-rounds-text').innerText = this.round;
-    document.getElementById('end-best-hand-text').innerText = this.roundScore;
-    document.getElementById('end-jokers-text').innerText = this.jokers.length;
+    const len = Math.hypot(mx, my);
+    if (len > 0) {
+      this.player.isMoving = true;
+      this.player.x += (mx / len) * this.player.speed;
+      this.player.y += (my / len) * this.player.speed;
+
+      // Bound within farm
+      this.player.x = Math.max(20, Math.min(this.farm.cols * this.farm.tileSize - 20, this.player.x));
+      this.player.y = Math.max(20, Math.min(this.farm.rows * this.farm.tileSize - 20, this.player.y));
+    } else {
+      this.player.isMoving = false;
+    }
+
+    // 3. Camera Lerp Tracking
+    const targetCamX = this.player.x - this.renderer.width / 2;
+    const targetCamY = this.player.y - this.renderer.height / 2;
+    this.camera.x += (targetCamX - this.camera.x) * 0.1;
+    this.camera.y += (targetCamY - this.camera.y) * 0.1;
+
+    // 4. Update Animals AI
+    this.farm.animals.forEach(a => a.update(0.016, this.farm));
   }
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-  window.game = new BalatroGame();
+  window.game = new SunnyvaleGame();
 });

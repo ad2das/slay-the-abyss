@@ -2,331 +2,191 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>BALATRO WEB | 발라트로: 포커 로그라이크</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>SUNNYVALE MEADOW | 햇살 계곡의 목장 (Cozy Farm Sim)</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&family=Rajdhani:wght@600;700;900&family=Noto+Sans+KR:wght@600;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&family=Quicksand:wght@500;600;700;800&family=Noto+Sans+KR:wght@500;700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div id="game-app">
-    <!-- Hypnotic Psychedelic Swirling Shader Canvas -->
-    <canvas id="bgCanvas"></canvas>
+  <div id="app-container">
     
-    <!-- CRT Barrel Distortion & Scanline Filter -->
-    <div id="crt-vignette"></div>
-    <div id="crt-scanlines"></div>
+    <!-- Game Canvas Viewport -->
+    <canvas id="farmCanvas"></canvas>
 
-    <!-- Main Game Frame -->
-    <div id="balatro-frame">
+    <!-- Dynamic Atmosphere & Lighting Layer -->
+    <div id="ambient-overlay"></div>
+    <div id="fireflies-overlay"></div>
 
-      <!-- ================= TOP: JOKERS & CONSUMABLES DOCK ================= -->
-      <div id="top-dock">
-        <!-- Joker Slots (Max 5) -->
-        <div class="slots-container" id="jokers-dock-container">
-          <div class="dock-header-label">
-            <span class="label-title">JOKERS</span>
-            <span class="label-count" id="joker-count-text">0/5</span>
-          </div>
-          <div class="dock-slots-row" id="jokers-row">
-            <!-- Dynamically populated Joker cards -->
-          </div>
+    <!-- ================= TOP HUD: TIME, DATE, WEATHER, MONEY ================= -->
+    <header id="top-hud">
+      <!-- Left: Day, Season & Time -->
+      <div class="hud-card time-card">
+        <div class="time-weather-row">
+          <div class="weather-badge" id="hud-weather-icon" title="맑음">☀️</div>
+          <div class="season-text" id="hud-season-text">봄 (Spring) - 1일차</div>
         </div>
-
-        <!-- Consumable Slots (Tarots/Planets, Max 2) -->
-        <div class="slots-container" id="consumables-dock-container">
-          <div class="dock-header-label">
-            <span class="label-title">CONSUMABLES</span>
-            <span class="label-count" id="consumable-count-text">0/2</span>
-          </div>
-          <div class="dock-slots-row" id="consumables-row">
-            <!-- Dynamically populated Tarot / Planet cards -->
+        <div class="clock-display">
+          <span id="hud-clock-text">08:00 AM</span>
+          <div class="time-progress-bar">
+            <div id="hud-time-fill" class="time-progress-fill" style="width: 25%;"></div>
           </div>
         </div>
       </div>
 
-      <!-- ================= CENTER: MAIN STAGE ================= -->
-      <div id="main-stage">
-        
-        <!-- LEFT SIDEBAR: RUN STATS & BLIND GOAL -->
-        <div id="left-sidebar">
-          <!-- Blind Target Card -->
-          <div class="sidebar-box blind-goal-box" id="blind-info-box">
-            <div class="blind-type-tag" id="sb-blind-name">SMALL BLIND</div>
-            <div class="blind-score-target">
-              <span class="target-label">SCORE AT LEAST</span>
-              <div class="target-value-text" id="sb-target-score">300</div>
-            </div>
-            <div class="blind-reward-tag">
-              <span>REWARD:</span>
-              <span class="money-text" id="sb-blind-reward">$3</span>
-            </div>
-            <div class="boss-debuff-text hidden" id="sb-boss-debuff"></div>
+      <!-- Right: Energy Bar & Gold -->
+      <div class="hud-card stats-card">
+        <div class="money-badge">
+          <span class="coin-icon">🪙</span>
+          <span id="hud-gold-text">500 G</span>
+        </div>
+        <div class="energy-bar-wrapper">
+          <div class="energy-label-row">
+            <span>체력 (Energy)</span>
+            <span id="hud-energy-text">100 / 100</span>
           </div>
-
-          <!-- Current Round Accumulated Score -->
-          <div class="sidebar-box round-score-box">
-            <span class="score-box-label">ROUND SCORE</span>
-            <div class="round-score-num" id="sb-current-score">0</div>
-            <!-- Flame meter progress bar -->
-            <div class="score-progress-bar">
-              <div class="score-progress-fill" id="sb-score-fill" style="width: 0%;"></div>
-            </div>
-          </div>
-
-          <!-- Ante & Round Status -->
-          <div class="sidebar-box run-info-box">
-            <div class="info-row">
-              <span>ANTE</span>
-              <strong id="sb-ante-text">1 / 8</strong>
-            </div>
-            <div class="info-row">
-              <span>ROUND</span>
-              <strong id="sb-round-text">1</strong>
-            </div>
-            <div class="info-row highlight-money">
-              <span>MONEY</span>
-              <strong id="sb-money-text">$4</strong>
-            </div>
-          </div>
-
-          <!-- Hands & Discards Counters -->
-          <div class="counters-row">
-            <div class="counter-badge badge-hands">
-              <span class="cnt-label">HANDS</span>
-              <span class="cnt-val" id="sb-hands-count">4</span>
-            </div>
-            <div class="counter-badge badge-discards">
-              <span class="cnt-label">DISCARDS</span>
-              <span class="cnt-val" id="sb-discards-count">3</span>
-            </div>
+          <div class="energy-bar-bg">
+            <div id="hud-energy-fill" class="energy-bar-fill" style="width: 100%;"></div>
           </div>
         </div>
-
-        <!-- RIGHT AREA: PLAYED CARDS, SCORING TALLY, AND HAND -->
-        <div id="play-area">
-
-          <!-- Upper Play Arena: Scoring Tally Banner & Played Cards -->
-          <div id="scoring-arena">
-            
-            <!-- Real-time Multiplier Calculator Display (Chips × Mult = Total) -->
-            <div id="scoring-calculator" class="hidden">
-              <div class="hand-name-banner" id="calc-hand-name">FLUSH</div>
-              <div class="calc-formula-row">
-                <div class="calc-chips-box">
-                  <span class="calc-label">CHIPS</span>
-                  <span class="calc-num" id="calc-chips-val">35</span>
-                </div>
-                <div class="calc-operator">✕</div>
-                <div class="calc-mult-box">
-                  <span class="calc-label">MULT</span>
-                  <span class="calc-num" id="calc-mult-val">4</span>
-                </div>
-                <div class="calc-equal">=</div>
-                <div class="calc-total-box" id="calc-total-val">140</div>
-              </div>
-            </div>
-
-            <!-- Played Cards Drop Zone -->
-            <div id="played-cards-holder">
-              <!-- Dynamically moved played cards during scoring sequence -->
-            </div>
-          </div>
-
-          <!-- Bottom Hand Deck & Controls -->
-          <div id="player-hand-wrapper">
-            <!-- Sort & Hand Level Helper Bar -->
-            <div class="hand-helper-bar">
-              <div class="detected-hand-name" id="detected-hand-label">HIGH CARD (Lv.1)</div>
-              <div class="sort-buttons-group">
-                <button id="btn-sort-rank" class="btn-sort">SORT RANK</button>
-                <button id="btn-sort-suit" class="btn-sort">SORT SUIT</button>
-                <button id="btn-view-deck" class="btn-sort">DECK (<span id="deck-remain-count">52</span>)</button>
-              </div>
-            </div>
-
-            <!-- Cards Hand Carousel (Spring Physics + Tilt) -->
-            <div id="cards-hand-container">
-              <!-- Dynamically populated playing cards -->
-            </div>
-
-            <!-- Action Buttons Row -->
-            <div class="hand-actions-bar">
-              <button id="btn-play-hand" class="btn-balatro btn-play">
-                <span class="btn-label">PLAY HAND</span>
-                <span class="btn-sub" id="play-hand-sub">(0/5 CARDS)</span>
-              </button>
-              <button id="btn-discard-hand" class="btn-balatro btn-discard">
-                <span class="btn-label">DISCARD</span>
-                <span class="btn-sub" id="discard-hand-sub">(0/5)</span>
-              </button>
-            </div>
-          </div>
-
-        </div>
-
       </div>
+    </header>
 
+    <!-- ================= FLOATING ACTION CONTROLS & ZOOM ================= -->
+    <div id="floating-actions">
+      <button id="btn-open-shop" class="btn-float btn-shop" title="피에르의 만물상점">
+        <span class="btn-float-icon">🏡</span>
+        <span class="btn-float-label">상점</span>
+      </button>
+      <button id="btn-open-inventory" class="btn-float btn-bag" title="가방 / 인벤토리">
+        <span class="btn-float-icon">🎒</span>
+        <span class="btn-float-label">가방</span>
+      </button>
+      <button id="btn-sleep-bed" class="btn-float btn-sleep" title="하루 끝내기 & 취침">
+        <span class="btn-float-icon">🌙</span>
+        <span class="btn-float-label">취침</span>
+      </button>
+      <button id="btn-zoom-toggle" class="btn-float btn-zoom" title="화면 확대/축소">
+        <span class="btn-float-icon">🔍</span>
+      </button>
     </div>
 
-    <!-- ================= MODAL: BLIND SELECTION SCREEN ================= -->
-    <div id="screen-blind-select" class="overlay-modal hidden">
-      <div class="modal-content blind-select-content">
-        <div class="modal-title-header">
-          <h2>SELECT NEXT BLIND (ANTE <span id="bs-ante-num">1</span>)</h2>
-          <p>도전할 블라인드를 선택하십시오. 승리 시 상점이 열립니다.</p>
+    <!-- ================= MOBILE VIRTUAL JOYSTICK ================= -->
+    <div id="joystick-zone">
+      <div id="joystick-base">
+        <div id="joystick-knob"></div>
+      </div>
+    </div>
+
+    <!-- ================= BOTTOM TOOLBAR / HOTBAR ================= -->
+    <footer id="bottom-hotbar-dock">
+      <div class="hotbar-scroll-wrapper">
+        <div class="hotbar-slots-row" id="hotbar-slots">
+          <!-- 8 Mobile Touch Slots: Hoe, Can, Seeds, Basket, Feed, Rod, etc. -->
+        </div>
+      </div>
+      <div class="hotbar-active-tip" id="hotbar-tool-name">호미 (Hoe) : 땅을 일굽니다</div>
+    </footer>
+
+    <!-- ================= MODAL: PIERRE'S COZY SHOP ================= -->
+    <div id="modal-shop" class="bottom-sheet-modal hidden">
+      <div class="modal-backdrop"></div>
+      <div class="modal-sheet">
+        <div class="sheet-handle"></div>
+        <div class="sheet-header">
+          <div class="shopkeeper-profile">
+            <div class="npc-avatar">👨‍🌾</div>
+            <div class="npc-info">
+              <h2>피에르의 시골 잡화점</h2>
+              <p>"신선한 씨앗과 목장 용품이 가득하답니다!"</p>
+            </div>
+          </div>
+          <button class="btn-close-sheet" data-modal="modal-shop">✕</button>
         </div>
 
-        <div class="blinds-cards-row">
-          <!-- Small Blind -->
-          <div class="blind-choice-card" id="card-small-blind">
-            <div class="bc-tag">SMALL BLIND</div>
-            <div class="bc-icon">🔵</div>
-            <div class="bc-score-label">SCORE AT LEAST</div>
-            <div class="bc-score-val" id="bc-small-score">300</div>
-            <div class="bc-reward">REWARD: <span class="money-text">$3</span></div>
-            <div class="bc-actions">
-              <button class="btn-balatro btn-select-blind" data-blind="small">SELECT</button>
-              <button class="btn-skip-blind" data-blind="small">SKIP (<span class="skip-tag-text">Mega Pack</span>)</button>
-            </div>
-          </div>
+        <div class="shop-tabs-nav">
+          <button class="shop-tab active" data-tab="seeds">🌱 씨앗 (Seeds)</button>
+          <button class="shop-tab" data-tab="animals">🐮 가축 & 사료</button>
+          <button class="shop-tab" data-tab="upgrades">🔨 목장 시설 확장</button>
+        </div>
 
-          <!-- Big Blind -->
-          <div class="blind-choice-card" id="card-big-blind">
-            <div class="bc-tag">BIG BLIND</div>
-            <div class="bc-icon">🟡</div>
-            <div class="bc-score-label">SCORE AT LEAST</div>
-            <div class="bc-score-val" id="bc-big-score">450</div>
-            <div class="bc-reward">REWARD: <span class="money-text">$4</span></div>
-            <div class="bc-actions">
-              <button class="btn-balatro btn-select-blind" data-blind="big">SELECT</button>
-              <button class="btn-skip-blind" data-blind="big">SKIP (<span class="skip-tag-text">+1 Voucher</span>)</button>
-            </div>
-          </div>
-
-          <!-- Boss Blind -->
-          <div class="blind-choice-card boss-choice-card" id="card-boss-blind">
-            <div class="bc-tag">BOSS BLIND</div>
-            <div class="bc-icon" id="bc-boss-icon">💀</div>
-            <h3 class="bc-boss-name" id="bc-boss-name">THE HOOK</h3>
-            <div class="bc-boss-desc" id="bc-boss-desc">매 핸드를 낼 때마다 무작위 카드 2장을 버립니다.</div>
-            <div class="bc-score-label">SCORE AT LEAST</div>
-            <div class="bc-score-val" id="bc-boss-score">600</div>
-            <div class="bc-reward">REWARD: <span class="money-text">$5</span></div>
-            <div class="bc-actions">
-              <button class="btn-balatro btn-select-blind" data-blind="boss">SELECT</button>
-            </div>
-          </div>
+        <div class="shop-goods-grid" id="shop-goods-container">
+          <!-- Dynamically populated shop items -->
         </div>
       </div>
     </div>
 
-    <!-- ================= MODAL: THE SHOP & BOOSTER PACKS ================= -->
-    <div id="screen-shop" class="overlay-modal hidden">
-      <div class="modal-content shop-modal-content">
-        <div class="shop-header-row">
-          <div class="shop-title-badge">
-            <h2>THE SHOP</h2>
-            <p>조커, 타로, 행성 카드 및 부스터 팩을 구매하여 덱을 강화하십시오.</p>
-          </div>
-          <div class="shop-money-dock">
-            <span>🪙 MONEY:</span>
-            <span class="money-text" id="shop-money-val">$4</span>
-          </div>
+    <!-- ================= MODAL: INVENTORY / BACKPACK ================= -->
+    <div id="modal-inventory" class="bottom-sheet-modal hidden">
+      <div class="modal-backdrop"></div>
+      <div class="modal-sheet">
+        <div class="sheet-handle"></div>
+        <div class="sheet-header">
+          <h2>내 배낭 (INVENTORY)</h2>
+          <button class="btn-close-sheet" data-modal="modal-inventory">✕</button>
         </div>
-
-        <div class="shop-main-shelves">
-          <!-- Shelf 1: Jokers & Consumables -->
-          <div class="shop-shelf-block">
-            <div class="shelf-label">CARDS & JOKERS</div>
-            <div class="shop-items-row" id="shop-cards-row">
-              <!-- Dynamically populated shop items -->
-            </div>
-          </div>
-
-          <!-- Shelf 2: Booster Packs & Vouchers -->
-          <div class="shop-shelf-block">
-            <div class="shelf-label">BOOSTER PACKS & VOUCHERS</div>
-            <div class="shop-items-row" id="shop-packs-row">
-              <!-- Arcana Pack, Celestial Pack, Buffoon Pack -->
-            </div>
-          </div>
+        <div class="inventory-grid" id="inventory-slots-container">
+          <!-- 24 Inventory Grid Slots -->
         </div>
-
-        <div class="shop-bottom-controls">
-          <button id="btn-reroll-shop" class="btn-balatro btn-reroll">
-            <span>REROLL SHOP</span>
-            <span class="money-text" id="shop-reroll-cost">($5)</span>
-          </button>
-          <button id="btn-next-round" class="btn-balatro btn-next-round">
-            <span>NEXT ROUND ➔</span>
-          </button>
+        <div class="inventory-actions-row">
+          <div class="selected-item-info" id="inv-item-info">선택된 아이템이 없습니다.</div>
+          <button id="btn-sell-to-shipping" class="btn-cozy-primary">출하 상자에 넣기</button>
         </div>
       </div>
     </div>
 
-    <!-- ================= MODAL: BOOSTER PACK OPENING ================= -->
-    <div id="screen-pack-open" class="overlay-modal hidden">
-      <div class="modal-content pack-open-content">
-        <h2 id="pack-open-title">BUFFOON PACK</h2>
-        <p id="pack-open-subtitle">카드를 1장 선택하여 획득하십시오.</p>
-        
-        <div class="pack-cards-grid" id="pack-cards-container">
-          <!-- 2 to 4 pack choices -->
+    <!-- ================= MODAL: FISHING MINI-GAME ================= -->
+    <div id="modal-fishing" class="center-dialog-modal hidden">
+      <div class="modal-backdrop"></div>
+      <div class="fishing-game-card">
+        <div class="fishing-header">
+          <h3>🎣 물고기를 낚아 올리세요!</h3>
+          <p>화면을 길게 눌러 초록색 바를 물고기 위치에 유지하세요!</p>
         </div>
 
-        <button id="btn-skip-pack" class="btn-balatro">SKIP REMAINING</button>
+        <div class="fishing-gauge-container">
+          <div class="fishing-water-column">
+            <div class="green-catch-bar" id="fish-green-bar"></div>
+            <div class="swimming-fish-icon" id="fish-icon">🐟</div>
+          </div>
+          <div class="fishing-catch-progress-track">
+            <div class="fishing-catch-fill" id="fish-progress-fill" style="height: 30%;"></div>
+          </div>
+        </div>
+
+        <button id="btn-reel-fish" class="btn-reel-touch">릴 감기 (TAP & HOLD)</button>
       </div>
     </div>
 
-    <!-- ================= MODAL: DECK VIEWER ================= -->
-    <div id="screen-deck-view" class="overlay-modal hidden">
-      <div class="modal-content deck-view-content">
-        <div class="modal-title-header">
-          <h2>FULL DECK COMPOSITION (<span id="dv-card-count">52</span> CARDS)</h2>
-          <button id="btn-close-deck-view" class="btn-close-modal">✕</button>
+    <!-- ================= MODAL: DAILY SHIPPING REVENUE SUMMARY ================= -->
+    <div id="modal-shipping-summary" class="center-dialog-modal hidden">
+      <div class="modal-backdrop"></div>
+      <div class="shipping-summary-card">
+        <div class="summary-sun-icon">🌅</div>
+        <h2>오늘의 농장 출하 정산</h2>
+        <div class="summary-rows-list" id="summary-items-list"></div>
+        <div class="summary-total-row">
+          <span>총 수익 (Total Earned):</span>
+          <strong class="money-gold" id="summary-total-gold">+0 G</strong>
         </div>
-        <div class="deck-grid-scroll" id="deck-view-grid">
-          <!-- 52 playing cards -->
-        </div>
+        <button id="btn-start-next-day" class="btn-cozy-primary">새로운 하루 시작하기</button>
       </div>
     </div>
 
-    <!-- ================= MODAL: GAME OVER & VICTORY ================= -->
-    <div id="screen-game-end" class="overlay-modal hidden">
-      <div class="modal-content end-game-content">
-        <h1 id="end-title" class="end-title-defeat">GAME OVER</h1>
-        <p id="end-subtitle">블라인드 목표 점수를 달성하지 못했습니다.</p>
-
-        <div class="end-stats-card">
-          <div class="end-stat-row"><span>최고 도달 ANTE:</span><strong id="end-ante-text">Ante 4</strong></div>
-          <div class="end-stat-row"><span>플레이한 라운드:</span><strong id="end-rounds-text">11</strong></div>
-          <div class="end-stat-row"><span>최고 단일 핸드 점수:</span><strong id="end-best-hand-text">24,500</strong></div>
-          <div class="end-stat-row"><span>수집한 조커:</span><strong id="end-jokers-text">5</strong></div>
-        </div>
-
-        <button id="btn-play-again" class="btn-balatro btn-play-again">PLAY AGAIN (새로운 런)</button>
-      </div>
-    </div>
-
-    <!-- Global Floating Card Tooltip -->
-    <div id="card-tooltip" class="hidden">
-      <div id="tt-card-title">JOKER NAME</div>
-      <div id="tt-card-edition">FOIL EDITION</div>
-      <div id="tt-card-desc">Joker effect description goes here.</div>
-    </div>
+    <!-- Interactive Floating Notice Tooltip -->
+    <div id="game-toast" class="toast-hidden">알림 내용</div>
 
   </div>
 
-  <!-- Balatro Game Modules -->
+  <!-- Game Scripts -->
   <script src="js/audio.js"></script>
-  <script src="js/shader.js"></script>
-  <script src="js/deck.js"></script>
-  <script src="js/jokers.js"></script>
-  <script src="js/consumables.js"></script>
-  <script src="js/blinds.js"></script>
-  <script src="js/scoring.js"></script>
+  <script src="js/crops.js"></script>
+  <script src="js/animals.js"></script>
+  <script src="js/fishing.js"></script>
+  <script src="js/farm.js"></script>
+  <script src="js/shop.js"></script>
+  <script src="js/renderer.js"></script>
   <script src="js/game.js"></script>
 </body>
 </html>
