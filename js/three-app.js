@@ -1,6 +1,6 @@
 /* ==========================================================================
    SUNNYVALE 3D - THREE.JS WEBGL LUXURY DIORAMA & INTERACTIVE FARM
-   Cinematic Bloom, Dynamic PBR Materials, 3D Crop Growth & Procedural Animals
+   PBR Materials, Soft Shadows, 3D Crop Growth & Dynamic Day/Night Lighting
    ========================================================================== */
 
 class Sunnyvale3D {
@@ -9,14 +9,13 @@ class Sunnyvale3D {
     this.scene = null;
     this.camera = null;
     this.renderer = null;
-    this.composer = null;
     this.controls = null;
     this.raycaster = new THREE.Raycaster();
     this.mouse = new THREE.Vector2();
 
     // 3D Objects Pools
-    this.plots = []; // 3D Soil Plot Meshes
-    this.cropMeshes = {}; // "x,y": 3D Group
+    this.plots = [];
+    this.cropMeshes = {};
     this.animals = [];
     this.windmillBlades = null;
     this.waterMesh = null;
@@ -45,7 +44,7 @@ class Sunnyvale3D {
       { id: 'golden_milk', name: '신선한 목장 골든 밀크', icon: '🥛', price: 240, count: 2 }
     ];
 
-    this.cropData = {}; // "x,y": { cropId, stage, daysGrown, watered, maxDays }
+    this.cropData = {};
 
     this.initThree();
     this.build3DWorld();
@@ -56,56 +55,46 @@ class Sunnyvale3D {
   initThree() {
     // 1. Scene & Camera
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color('#0c121e');
-    this.scene.fog = new THREE.FogExp2('#0c121e', 0.015);
+    this.scene.background = new THREE.Color('#38bdf8');
+    this.scene.fog = new THREE.FogExp2('#38bdf8', 0.012);
 
     const aspect = window.innerWidth / window.innerHeight;
     this.camera = new THREE.PerspectiveCamera(45, aspect, 0.1, 1000);
-    this.camera.position.set(22, 26, 26);
+    this.camera.position.set(24, 28, 28);
 
-    // 2. WebGL Renderer with Shadow Maps
+    // 2. WebGL Renderer with Soft Shadow Maps & ACES Tone Mapping
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.15;
+    this.renderer.toneMappingExposure = 1.2;
     this.container.appendChild(this.renderer.domElement);
 
     // 3. OrbitControls
-    this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
-    this.controls.enableDamping = true;
-    this.controls.dampingFactor = 0.05;
-    this.controls.maxPolarAngle = Math.PI / 2.15;
-    this.controls.minDistance = 12;
-    this.controls.maxDistance = 55;
-    this.controls.target.set(0, 0, 0);
+    if (THREE.OrbitControls) {
+      this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+      this.controls.enableDamping = true;
+      this.controls.dampingFactor = 0.05;
+      this.controls.maxPolarAngle = Math.PI / 2.15;
+      this.controls.minDistance = 12;
+      this.controls.maxDistance = 60;
+      this.controls.target.set(0, 0, 0);
+    }
 
-    // 4. UnrealBloom PostProcessing
-    const renderPass = new THREE.RenderPass(this.scene, this.camera);
-    const bloomPass = new THREE.UnrealBloomPass(
-      new THREE.Vector2(window.innerWidth, window.innerHeight),
-      0.45, // strength
-      0.3,  // radius
-      0.85  // threshold
-    );
-    this.composer = new THREE.EffectComposer(this.renderer);
-    this.composer.addPass(renderPass);
-    this.composer.addPass(bloomPass);
-
-    // 5. Lighting Setup
-    this.ambientLight = new THREE.AmbientLight(0xfff7ed, 0.85);
+    // 4. Directional Sunlight & Ambient Lighting
+    this.ambientLight = new THREE.AmbientLight(0xffffff, 0.9);
     this.scene.add(this.ambientLight);
 
-    this.sunLight = new THREE.DirectionalLight(0xfef08a, 1.6);
-    this.sunLight.position.set(25, 40, 20);
+    this.sunLight = new THREE.DirectionalLight(0xfef08a, 1.8);
+    this.sunLight.position.set(25, 45, 20);
     this.sunLight.castShadow = true;
     this.sunLight.shadow.mapSize.width = 2048;
     this.sunLight.shadow.mapSize.height = 2048;
     this.sunLight.shadow.camera.near = 0.5;
-    this.sunLight.shadow.camera.far = 100;
-    const d = 25;
+    this.sunLight.shadow.camera.far = 120;
+    const d = 30;
     this.sunLight.shadow.camera.left = -d;
     this.sunLight.shadow.camera.right = d;
     this.sunLight.shadow.camera.top = d;
@@ -113,9 +102,9 @@ class Sunnyvale3D {
     this.sunLight.shadow.bias = -0.0005;
     this.scene.add(this.sunLight);
 
-    // Warm Lantern Point Lights
-    this.lanternLight = new THREE.PointLight(0xfbbf24, 2.0, 18);
-    this.lanternLight.position.set(-6, 4, -4);
+    // Warm Lantern Point Light
+    this.lanternLight = new THREE.PointLight(0xfbbf24, 2.5, 20);
+    this.lanternLight.position.set(-6, 5, -4);
     this.scene.add(this.lanternLight);
 
     window.addEventListener('resize', () => this.onResize());
@@ -125,27 +114,26 @@ class Sunnyvale3D {
     this.camera.aspect = window.innerWidth / window.innerHeight;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.composer.setSize(window.innerWidth, window.innerHeight);
   }
 
   build3DWorld() {
-    // 1. Floating Diorama Base Island
-    const baseGeo = new THREE.CylinderGeometry(18, 16, 3, 32);
+    // 1. Floating Diorama Island Base
+    const baseGeo = new THREE.CylinderGeometry(20, 17, 4, 36);
     const baseMat = new THREE.MeshStandardMaterial({
-      color: '#475569',
+      color: '#334155',
       roughness: 0.8,
       metalness: 0.1
     });
     const baseIsland = new THREE.Mesh(baseGeo, baseMat);
-    baseIsland.position.y = -1.5;
+    baseIsland.position.y = -2.0;
     baseIsland.receiveShadow = true;
     this.scene.add(baseIsland);
 
     // Top Lush Grass Layer
-    const grassGeo = new THREE.CylinderGeometry(18.1, 18.1, 0.4, 32);
+    const grassGeo = new THREE.CylinderGeometry(20.1, 20.1, 0.4, 36);
     const grassMat = new THREE.MeshStandardMaterial({
-      color: '#34d399',
-      roughness: 0.6,
+      color: '#4ade80',
+      roughness: 0.5,
       metalness: 0.05
     });
     const grassTop = new THREE.Mesh(grassGeo, grassMat);
@@ -154,24 +142,24 @@ class Sunnyvale3D {
     this.scene.add(grassTop);
 
     // 2. 3D Water Canal / Pond
-    const waterGeo = new THREE.CircleGeometry(5.5, 32);
+    const waterGeo = new THREE.CircleGeometry(6, 32);
     const waterMat = new THREE.MeshStandardMaterial({
       color: '#38bdf8',
       roughness: 0.1,
       metalness: 0.8,
       transparent: true,
-      opacity: 0.85
+      opacity: 0.9
     });
     this.waterMesh = new THREE.Mesh(waterGeo, waterMat);
     this.waterMesh.rotation.x = -Math.PI / 2;
-    this.waterMesh.position.set(8, 0.32, 6);
+    this.waterMesh.position.set(9, 0.32, 6);
     this.scene.add(this.waterMesh);
 
     // 3. 3D Cozy Farmhouse
     this.buildHouse(-8, 0.3, -6);
 
     // 4. 3D Animated Windmill
-    this.buildWindmill(9, 0.3, -8);
+    this.buildWindmill(9, 0.3, -9);
 
     // 5. 3D Soil Plots Grid (4x4)
     this.buildSoilGrid();
@@ -187,17 +175,17 @@ class Sunnyvale3D {
   }
 
   buildSoilGrid() {
-    const plotGeo = new THREE.BoxGeometry(1.8, 0.2, 1.8);
+    const plotGeo = new THREE.BoxGeometry(2.0, 0.2, 2.0);
 
     for (let y = -2; y < 2; y++) {
       for (let x = -2; x < 2; x++) {
         const plotMat = new THREE.MeshStandardMaterial({
-          color: '#854d0e', // Dry soil
+          color: '#854d0e',
           roughness: 0.9,
           metalness: 0.05
         });
         const plot = new THREE.Mesh(plotGeo, plotMat);
-        plot.position.set(x * 2.2 - 2, 0.25, y * 2.2 + 3);
+        plot.position.set(x * 2.4 - 2, 0.25, y * 2.4 + 4);
         plot.receiveShadow = true;
         plot.userData = { gridX: x + 2, gridY: y + 2, isPlot: true };
         this.scene.add(plot);
@@ -207,7 +195,7 @@ class Sunnyvale3D {
         if (x === -2 && y === -2) {
           this.plantCrop(x + 2, y + 2, 'strawberry', 2);
         } else if (x === -1 && y === -2) {
-          this.plantCrop(x + 2, y + 2, 'pumpkin', 3);
+          this.plantCrop(x + 2, y + 2, 'pumpkin', 2);
         }
       }
     }
@@ -216,29 +204,30 @@ class Sunnyvale3D {
   buildHouse(x, y, z) {
     const houseGroup = new THREE.Group();
 
-    // Base Walls
-    const wallGeo = new THREE.BoxGeometry(5, 3.5, 4);
+    // Walls
+    const wallGeo = new THREE.BoxGeometry(5.5, 4, 4.5);
     const wallMat = new THREE.MeshStandardMaterial({ color: '#fef3c7', roughness: 0.7 });
     const walls = new THREE.Mesh(wallGeo, wallMat);
-    walls.position.y = 1.75;
+    walls.position.y = 2.0;
     walls.castShadow = true;
     walls.receiveShadow = true;
     houseGroup.add(walls);
 
-    // Terracotta Roof
-    const roofGeo = new THREE.ConeGeometry(4.2, 2.4, 4);
+    // Roof
+    const roofGeo = new THREE.ConeGeometry(4.8, 2.8, 4);
     const roofMat = new THREE.MeshStandardMaterial({ color: '#dc2626', roughness: 0.4 });
     const roof = new THREE.Mesh(roofGeo, roofMat);
-    roof.position.y = 4.4;
+    roof.position.y = 5.2;
     roof.rotation.y = Math.PI / 4;
     roof.castShadow = true;
     houseGroup.add(roof);
 
-    // Chimney with Smoke
-    const chimGeo = new THREE.BoxGeometry(0.8, 2, 0.8);
+    // Chimney
+    const chimGeo = new THREE.BoxGeometry(0.9, 2.2, 0.9);
     const chimMat = new THREE.MeshStandardMaterial({ color: '#78350f' });
     const chimney = new THREE.Mesh(chimGeo, chimMat);
-    chimney.position.set(1.4, 4.2, -0.6);
+    chimney.position.set(1.5, 4.8, -0.7);
+    chimney.castShadow = true;
     houseGroup.add(chimney);
 
     houseGroup.position.set(x, y, z);
@@ -248,16 +237,16 @@ class Sunnyvale3D {
   buildWindmill(x, y, z) {
     const wmGroup = new THREE.Group();
 
-    const towerGeo = new THREE.CylinderGeometry(1.6, 2.4, 6, 8);
-    const towerMat = new THREE.MeshStandardMaterial({ color: '#e2e8f0', roughness: 0.6 });
+    const towerGeo = new THREE.CylinderGeometry(1.8, 2.6, 7, 8);
+    const towerMat = new THREE.MeshStandardMaterial({ color: '#f1f5f9', roughness: 0.6 });
     const tower = new THREE.Mesh(towerGeo, towerMat);
-    tower.position.y = 3;
+    tower.position.y = 3.5;
     tower.castShadow = true;
     wmGroup.add(tower);
 
-    // Blades
+    // Windmill Blades
     this.windmillBlades = new THREE.Group();
-    const bladeGeo = new THREE.BoxGeometry(0.5, 6, 0.1);
+    const bladeGeo = new THREE.BoxGeometry(0.6, 7, 0.1);
     const bladeMat = new THREE.MeshStandardMaterial({ color: '#b45309' });
 
     const b1 = new THREE.Mesh(bladeGeo, bladeMat);
@@ -266,7 +255,7 @@ class Sunnyvale3D {
     this.windmillBlades.add(b1);
     this.windmillBlades.add(b2);
 
-    this.windmillBlades.position.set(0, 5.2, 1.7);
+    this.windmillBlades.position.set(0, 6.0, 2.0);
     wmGroup.add(this.windmillBlades);
 
     wmGroup.position.set(x, y, z);
@@ -274,29 +263,28 @@ class Sunnyvale3D {
   }
 
   buildDecorations() {
-    // Trees
     const treeCoords = [
-      { x: -12, z: 6 },
-      { x: -10, z: 11 },
-      { x: 12, z: -2 },
-      { x: 13, z: 4 }
+      { x: -14, z: 6 },
+      { x: -11, z: 12 },
+      { x: 13, z: -2 },
+      { x: 14, z: 5 }
     ];
 
     treeCoords.forEach(c => {
       const tree = new THREE.Group();
       // Trunk
-      const trunkGeo = new THREE.CylinderGeometry(0.4, 0.6, 2, 8);
+      const trunkGeo = new THREE.CylinderGeometry(0.45, 0.65, 2.4, 8);
       const trunkMat = new THREE.MeshStandardMaterial({ color: '#78350f' });
       const trunk = new THREE.Mesh(trunkGeo, trunkMat);
-      trunk.position.y = 1;
+      trunk.position.y = 1.2;
       trunk.castShadow = true;
       tree.add(trunk);
 
-      // Foliage (Low-poly puff)
-      const folGeo = new THREE.DodecahedronGeometry(1.8, 1);
-      const folMat = new THREE.MeshStandardMaterial({ color: '#15803d', roughness: 0.6 });
+      // Foliage
+      const folGeo = new THREE.DodecahedronGeometry(2.0, 1);
+      const folMat = new THREE.MeshStandardMaterial({ color: '#16a34a', roughness: 0.6 });
       const foliage = new THREE.Mesh(folGeo, folMat);
-      foliage.position.y = 2.8;
+      foliage.position.y = 3.2;
       foliage.castShadow = true;
       tree.add(foliage);
 
@@ -308,20 +296,20 @@ class Sunnyvale3D {
   buildAnimals() {
     // 3D Fluffy Sheep
     const sheep = new THREE.Group();
-    const bodyGeo = new THREE.SphereGeometry(1.0, 16, 16);
+    const bodyGeo = new THREE.SphereGeometry(1.1, 16, 16);
     const bodyMat = new THREE.MeshStandardMaterial({ color: '#f8fafc', roughness: 0.9 });
     const body = new THREE.Mesh(bodyGeo, bodyMat);
-    body.position.y = 1.0;
+    body.position.y = 1.1;
     body.castShadow = true;
     sheep.add(body);
 
-    const headGeo = new THREE.SphereGeometry(0.5, 12, 12);
+    const headGeo = new THREE.SphereGeometry(0.55, 12, 12);
     const headMat = new THREE.MeshStandardMaterial({ color: '#1e293b' });
     const head = new THREE.Mesh(headGeo, headMat);
-    head.position.set(0.9, 1.2, 0);
+    head.position.set(1.0, 1.3, 0);
     sheep.add(head);
 
-    sheep.position.set(4, 0.3, -3);
+    sheep.position.set(5, 0.3, -4);
     this.scene.add(sheep);
     this.animals.push(sheep);
   }
@@ -332,15 +320,15 @@ class Sunnyvale3D {
     const pos = new Float32Array(count * 3);
 
     for (let i = 0; i < count * 3; i += 3) {
-      pos[i] = (Math.random() - 0.5) * 30;
+      pos[i] = (Math.random() - 0.5) * 32;
       pos[i + 1] = Math.random() * 8 + 1;
-      pos[i + 2] = (Math.random() - 0.5) * 30;
+      pos[i + 2] = (Math.random() - 0.5) * 32;
     }
 
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     const mat = new THREE.PointsMaterial({
       color: '#fef08a',
-      size: 0.4,
+      size: 0.45,
       transparent: true,
       opacity: 0.8
     });
@@ -351,7 +339,6 @@ class Sunnyvale3D {
 
   plantCrop(gx, gy, cropId, stage = 0) {
     const key = `${gx},${gy}`;
-    // Remove existing mesh
     if (this.cropMeshes[key]) {
       this.scene.remove(this.cropMeshes[key]);
       delete this.cropMeshes[key];
@@ -363,41 +350,41 @@ class Sunnyvale3D {
 
     if (stage === 0) {
       // Tiny Sprout
-      const sGeo = new THREE.ConeGeometry(0.2, 0.5, 6);
+      const sGeo = new THREE.ConeGeometry(0.25, 0.6, 6);
       const sMat = new THREE.MeshStandardMaterial({ color: '#22c55e' });
       const sprout = new THREE.Mesh(sGeo, sMat);
       sprout.position.y = 0.4;
       cropGroup.add(sprout);
     } else if (stage === 1) {
       // Growing Leaves
-      const stemGeo = new THREE.CylinderGeometry(0.08, 0.08, 0.8, 6);
+      const stemGeo = new THREE.CylinderGeometry(0.1, 0.1, 1.0, 6);
       const stemMat = new THREE.MeshStandardMaterial({ color: '#15803d' });
       const stem = new THREE.Mesh(stemGeo, stemMat);
-      stem.position.y = 0.5;
+      stem.position.y = 0.6;
       cropGroup.add(stem);
     } else {
-      // Mature 3D Crop! (Strawberry / Pumpkin / Sunflower)
+      // Mature 3D Crop!
       if (cropId === 'strawberry') {
-        const fruitGeo = new THREE.DodecahedronGeometry(0.45, 1);
+        const fruitGeo = new THREE.DodecahedronGeometry(0.5, 1);
         const fruitMat = new THREE.MeshStandardMaterial({ color: '#ef4444', roughness: 0.3 });
         const fruit = new THREE.Mesh(fruitGeo, fruitMat);
-        fruit.position.y = 0.6;
+        fruit.position.y = 0.7;
         fruit.castShadow = true;
         cropGroup.add(fruit);
       } else if (cropId === 'pumpkin') {
-        const pGeo = new THREE.SphereGeometry(0.7, 12, 12);
+        const pGeo = new THREE.SphereGeometry(0.75, 12, 12);
         pGeo.scale(1.2, 0.9, 1.2);
         const pMat = new THREE.MeshStandardMaterial({ color: '#ea580c', roughness: 0.5 });
         const pumpkin = new THREE.Mesh(pGeo, pMat);
-        pumpkin.position.y = 0.6;
+        pumpkin.position.y = 0.7;
         pumpkin.castShadow = true;
         cropGroup.add(pumpkin);
       } else {
         // Sunflower
-        const flowerGeo = new THREE.CylinderGeometry(0.6, 0.6, 0.1, 12);
+        const flowerGeo = new THREE.CylinderGeometry(0.7, 0.7, 0.1, 12);
         const flowerMat = new THREE.MeshStandardMaterial({ color: '#facc15' });
         const flower = new THREE.Mesh(flowerGeo, flowerMat);
-        flower.position.y = 1.0;
+        flower.position.y = 1.1;
         cropGroup.add(flower);
       }
     }
@@ -480,20 +467,20 @@ class Sunnyvale3D {
 
     if (!tool) return;
 
-    // 1. Hoe: Till
+    // 1. Hoe
     if (tool.id === 'hoe') {
       plotMesh.material.color.set('#78350f');
       window.cozyAudio.playSFX('till_soil');
       this.showToast('밭 개간 완료');
     }
-    // 2. Water Can
+    // 2. Can
     else if (tool.id === 'can') {
-      plotMesh.material.color.set('#451a03'); // Dark wet soil
+      plotMesh.material.color.set('#451a03');
       if (this.cropData[key]) this.cropData[key].watered = true;
       window.cozyAudio.playSFX('water_splash');
       this.showToast('수분 공급 완료 💧');
     }
-    // 3. Planting Seeds
+    // 3. Seeds
     else if (tool.isSeed && tool.count > 0) {
       if (!this.cropData[key]) {
         tool.count--;
@@ -503,7 +490,7 @@ class Sunnyvale3D {
         this.showToast(`${tool.name} 파종 완료 🌱`);
       }
     }
-    // 4. Harvest Basket
+    // 4. Basket
     else if (tool.id === 'basket' || !tool) {
       const c = this.cropData[key];
       if (c && c.ready) {
@@ -530,17 +517,19 @@ class Sunnyvale3D {
     if (this.timeState === 0) {
       // Day
       this.scene.background.set('#38bdf8');
+      this.scene.fog.color.set('#38bdf8');
       this.sunLight.color.set('#fef08a');
-      this.sunLight.intensity = 1.6;
-      this.ambientLight.intensity = 0.85;
+      this.sunLight.intensity = 1.8;
+      this.ambientLight.intensity = 0.9;
       document.getElementById('hud-time-orb').innerText = '☀️';
       document.getElementById('hud-clock').innerText = '11:00 AM';
       this.showToast('눈부신 한낮의 햇살 ☀️');
     } else if (this.timeState === 1) {
-      // Sunset (Golden Hour)
+      // Sunset
       this.scene.background.set('#ea580c');
+      this.scene.fog.color.set('#ea580c');
       this.sunLight.color.set('#f97316');
-      this.sunLight.intensity = 2.0;
+      this.sunLight.intensity = 2.2;
       this.ambientLight.intensity = 0.6;
       document.getElementById('hud-time-orb').innerText = '🌅';
       document.getElementById('hud-clock').innerText = '06:30 PM';
@@ -548,9 +537,10 @@ class Sunnyvale3D {
     } else {
       // Night
       this.scene.background.set('#0c121e');
+      this.scene.fog.color.set('#0c121e');
       this.sunLight.color.set('#6366f1');
-      this.sunLight.intensity = 0.3;
-      this.ambientLight.intensity = 0.3;
+      this.sunLight.intensity = 0.4;
+      this.ambientLight.intensity = 0.35;
       document.getElementById('hud-time-orb').innerText = '🌙';
       document.getElementById('hud-clock').innerText = '10:00 PM';
       this.showToast('반딧불이가 빛나는 밤 🌙');
@@ -571,7 +561,7 @@ class Sunnyvale3D {
     }
 
     this.timeState = 2;
-    this.cycleLightingTime(); // Reset to Day
+    this.cycleLightingTime();
     this.updateHUD();
     this.showToast(`🌅 Day ${this.day} 아침이 밝았습니다!`);
   }
@@ -623,7 +613,7 @@ class Sunnyvale3D {
     const container = document.getElementById('bag-items-container');
     container.innerHTML = '';
 
-    this.backpack.forEach((item, idx) => {
+    this.backpack.forEach((item) => {
       const el = document.createElement('div');
       el.className = 'luxury-shop-item';
       el.innerHTML = `
@@ -662,21 +652,19 @@ class Sunnyvale3D {
   animate() {
     requestAnimationFrame(() => this.animate());
 
-    // Rotate Windmill
     if (this.windmillBlades) {
       this.windmillBlades.rotation.z += 0.015;
     }
 
-    // Animate Water ripples
     if (this.waterMesh) {
       this.waterMesh.rotation.z += 0.005;
     }
 
-    // Controls update
-    this.controls.update();
+    if (this.controls) {
+      this.controls.update();
+    }
 
-    // Render with Bloom PostProcessing
-    this.composer.render();
+    this.renderer.render(this.scene, this.camera);
   }
 }
 

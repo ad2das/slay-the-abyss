@@ -2,28 +2,27 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>SUNNYVALE 3D | 초호화 3D 디오라마 목장 시뮬레이션</title>
+  <title>SUNNYVALE 3D DIORAMA | 초호화 3D 목장 시뮬레이션</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Plus+Jakarta+Sans:wght@500;700;800&family=Noto+Sans+KR:wght@500;700;900&display=swap" rel="stylesheet">
-  <!-- Three.js & Post-Processing Libraries -->
+  
+  <!-- Three.js Core & Controls -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
-  <link rel="stylesheet" href="style.css">
+
+  <link rel="stylesheet" href="style.css?v=3.0.0">
 </head>
 <body>
   <div id="game-app">
     <!-- 3D WebGL Canvas -->
     <div id="webgl-container"></div>
 
-    <!-- Cinematic Post-Processing Vignette -->
+    <!-- Cinematic Vignette Overlay -->
     <div id="cinematic-vignette"></div>
 
     <!-- ================= VISION-OS STYLE GLASS TOP HUD ================= -->
@@ -52,15 +51,9 @@
       </div>
     </header>
 
-    <!-- ================= 3D TARGET HIGHLIGHT & INTERACTION RETICLE ================= -->
-    <div id="interaction-reticle" class="hidden">
-      <div class="reticle-ring"></div>
-      <div class="reticle-label" id="reticle-text">작물 수확</div>
-    </div>
-
     <!-- ================= 3D CAMERA CONTROLS GUIDE ================= -->
     <div id="camera-hint">
-      <span>👆 드래그: 3D 회전 | 🤏 핀치/휠: 줌인·아웃 | 🎯 터치: 농경 작업</span>
+      <span>👆 드래그: 3D 회전 | 🤏 핀치/휠: 줌인·아웃 | 🎯 터치: 3D 작물 심기·수확</span>
     </div>
 
     <!-- ================= FLOATING GLASS ACTION BUTTONS ================= -->
@@ -131,13 +124,13 @@
       </div>
     </div>
 
-    <!-- Floating 3D Gold / XP Popups -->
+    <!-- Floating Toast Pill -->
     <div id="toast-pill" class="toast-hidden">알림</div>
 
   </div>
 
-  <!-- Game Scripts -->
-  <script src="js/audio.js"></script>
-  <script src="js/three-app.js"></script>
+  <!-- Game Scripts with Cache-Buster -->
+  <script src="js/audio.js?v=3.0.0"></script>
+  <script src="js/three-app.js?v=3.0.0"></script>
 </body>
 </html>
