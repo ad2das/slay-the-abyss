@@ -1,5 +1,6 @@
 /* ==========================================================================
-   HARVEST MOON: MINERAL MEADOW - MASTER GAME ENGINE & RETRO CONTROLLER
+   HARVEST MOON: MINERAL MEADOW - DEFINITIVE MASTER GAME ENGINE
+   Complete 4-Season Cycle, Horse Riding, Animals Care, Auto-Save & Tools
    ========================================================================== */
 
 class HarvestMoonGame {
@@ -12,44 +13,49 @@ class HarvestMoonGame {
     this.player = {
       x: 180,
       y: 130,
-      dir: 'down', // 'down', 'up', 'left', 'right'
-      speed: 2.2,
+      dir: 'down',
+      speed: 2.3,
       isMoving: false,
       walkFrame: 0,
       stamina: 100,
       maxStamina: 100,
-      heldItem: null
+      heldItem: null,
+      isRidingHorse: false
     };
 
     // Camera
     this.camera = { x: 0, y: 0 };
 
-    // Calendar & Clock
+    // Calendar & Seasons
     this.gold = 500;
     this.day = 1;
     this.dayNames = ['월', '화', '수', '목', '금', '토', '일'];
-    this.season = '봄 (Spring)';
-    this.timeMinutes = 360; // 6:00 AM (360 mins)
+    this.seasons = ['봄 (Spring)', '여름 (Summer)', '가을 (Autumn)', '겨울 (Winter)'];
+    this.seasonIdx = 0;
+    this.timeMinutes = 360; // 6:00 AM
     this.weather = '☀️ 맑음';
     this.zackShippedToday = false;
 
     // Tools & Rucksack
     this.tools = [
       { id: 'hoe', name: '호미 (Hoe)', icon: '🚜', sub: '밭을 일굽니다 [B]' },
-      { id: 'can', name: '물뿌리개 (Watering Can)', icon: '💧', sub: '작물에 물주기 [B] (강/우물에서 리필)', water: 30, maxWater: 30 },
+      { id: 'can', name: '물뿌리개 (Can)', icon: '💧', sub: '작물에 물주기 [B] (강/우물에서 리필)', water: 30, maxWater: 30 },
       { id: 'sickle', name: '낫 (Sickle)', icon: '🌾', sub: '잡초를 베어냅니다 [B]' },
       { id: 'axe', name: '도끼 (Axe)', icon: '🪓', sub: '나뭇가지를 벱니다 [B]' },
       { id: 'hammer', name: '망치 (Hammer)', icon: '🔨', sub: '바위/광석을 부숩니다 [B]' },
-      { id: 'seed_turnip', name: '순무 씨앗', icon: '🌱', sub: '밭에 파종합니다 [B]', isSeed: true, cropId: 'turnip', count: 6 },
-      { id: 'seed_straw', name: '딸기 씨앗', icon: '🌱', sub: '밭에 파종합니다 [B]', isSeed: true, cropId: 'strawberry', count: 4 },
+      { id: 'seed_turnip', name: '순무 씨앗', icon: '🌱', sub: '밭에 파종합니다 [B]', isSeed: true, cropId: 'turnip', count: 8 },
+      { id: 'seed_straw', name: '딸기 씨앗', icon: '🌱', sub: '밭에 파종합니다 [B]', isSeed: true, cropId: 'strawberry', count: 6 },
+      { id: 'seed_corn', name: '옥수수 씨앗', icon: '🌱', sub: '밭에 파종합니다 [B]', isSeed: true, cropId: 'corn', count: 4 },
+      { id: 'seed_pumpkin', name: '호박 씨앗', icon: '🌱', sub: '밭에 파종합니다 [B]', isSeed: true, cropId: 'pumpkin', count: 4 },
       { id: 'brush', name: '브러시 (Brush)', icon: '🪮', sub: '가축을 빗겨줍니다 [B]' },
       { id: 'milker', name: '착유기 (Milker)', icon: '🥛', sub: '소에게서 우유를 짭니다 [B]' },
-      { id: 'rod', name: '낚싯대 (Fishing Rod)', icon: '🎣', sub: '강에서 낚시를 합니다 [B]' }
+      { id: 'clippers', name: '가위 (Clippers)', icon: '✂️', sub: '양에게서 양모를 깎습니다 [B]' },
+      { id: 'rod', name: '낚싯대 (Rod)', icon: '🎣', sub: '강에서 낚시를 합니다 [B]' }
     ];
     this.equippedToolIdx = 0;
 
     this.rucksack = [
-      { id: 'turnip_crop', name: '신선한 순무', icon: '🥬', count: 3, sellPrice: 60 },
+      { id: 'turnip_crop', name: '신선한 순무', icon: '🥬', count: 4, sellPrice: 60 },
       { id: 'straw_crop', name: '달콤한 딸기', icon: '🍓', count: 2, sellPrice: 120 }
     ];
 
@@ -57,14 +63,28 @@ class HarvestMoonGame {
     this.keys = {};
     this.dialogActive = false;
 
+    // Animals Pool
+    this.map.animals = [
+      { id: 'horse', type: 'horse', name: '달님이 (Horse)', icon: '🐴', x: 260, y: 580, hearts: 4 },
+      { id: 'dog', type: 'dog', name: '바둑이 (Dog)', icon: '🐕', x: 280, y: 160, hearts: 3 },
+      { id: 'chick1', type: 'chicken', name: '꼬꼬 1호', icon: '🐔', x: 140, y: 480, hearts: 2, hasEgg: true },
+      { id: 'chick2', type: 'chicken', name: '꼬꼬 2호', icon: '🐔', x: 180, y: 500, hearts: 1, hasEgg: true },
+      { id: 'cow1', type: 'cow', name: '얼룩소 한우', icon: '🐮', x: 160, y: 640, hearts: 4, hasMilk: true },
+      { id: 'sheep1', type: 'sheep', name: '폭신이', icon: '🐑', x: 200, y: 660, hearts: 3, hasWool: true }
+    ];
+
+    this.loadGame();
     this.initCanvas();
     this.setupInputs();
     this.setupUI();
     this.startLoop();
 
-    // Opening Morning Intro
+    // Auto-Save every 30 seconds
+    setInterval(() => this.saveGame(), 30000);
+
+    // Opening greeting
     setTimeout(() => {
-      this.showDialog('촌장 토마스 (Mayor Thomas)', '👨‍🌾', '자네가 새로 온 목장주인가? 미네랄 계곡에 온 것을 진심으로 환영하네! 호미(B버튼)로 밭을 갈고 씨앗을 심어 훌륭한 목장을 만들어보게나!');
+      this.showDialog('촌장 토마스 (Mayor Thomas)', '👨‍🌾', '자네가 새로 온 목장주인가? 미네랄 계곡에 온 것을 진심으로 환영하네! 호미(B버튼)로 밭을 갈고 씨앗을 심어 훌륭한 목장을 만들어보게나! (말에 타려면 A버튼을 누르게)');
       window.hmAudio.playSFX('rooster');
       window.hmAudio.startSpringBGM();
     }, 400);
@@ -81,12 +101,11 @@ class HarvestMoonGame {
   }
 
   setupInputs() {
-    // Keyboard WASD & Arrows
     window.addEventListener('keydown', (e) => {
       this.keys[e.code] = true;
       if (e.code === 'Space' || e.code === 'KeyZ') this.handleActionA();
       if (e.code === 'KeyX') this.handleActionB();
-      if (e.code === 'KeyC') this.handleActionY(); // Tool swap
+      if (e.code === 'KeyC') this.handleActionY();
       if (e.code === 'Tab' || e.code === 'KeyI') {
         e.preventDefault();
         this.openRucksack();
@@ -97,7 +116,7 @@ class HarvestMoonGame {
       this.keys[e.code] = false;
     });
 
-    // Mobile D-Pad Buttons
+    // Mobile D-Pad
     const dpadMap = {
       'btn-dpad-up': 'up',
       'btn-dpad-down': 'down',
@@ -115,7 +134,7 @@ class HarvestMoonGame {
       btn.addEventListener('mouseup', stop);
     });
 
-    // Mobile Action Buttons
+    // Mobile Actions
     document.getElementById('btn-act-a').addEventListener('click', () => this.handleActionA());
     document.getElementById('btn-act-b').addEventListener('click', () => this.handleActionB());
     document.getElementById('btn-act-x').addEventListener('click', () => this.openRucksack());
@@ -123,7 +142,6 @@ class HarvestMoonGame {
   }
 
   setupUI() {
-    // Close Modals
     document.getElementById('btn-close-shop').addEventListener('click', () => {
       document.getElementById('modal-shop').classList.add('hidden');
     });
@@ -133,8 +151,6 @@ class HarvestMoonGame {
     document.getElementById('btn-close-shipping').addEventListener('click', () => {
       document.getElementById('modal-shipping').classList.add('hidden');
     });
-
-    // Dialog Box Click
     document.getElementById('dialog-box').addEventListener('click', () => {
       this.closeDialog();
     });
@@ -143,7 +159,6 @@ class HarvestMoonGame {
   }
 
   handleActionA() {
-    // If Dialog is active, advance / close dialog
     if (this.dialogActive) {
       this.closeDialog();
       return;
@@ -154,7 +169,31 @@ class HarvestMoonGame {
     const cropKey = `${frontTilePos.tx},${frontTilePos.ty}`;
     const crop = this.map.crops[cropKey];
 
-    // 1. If holding an item, drop into Shipping Bin
+    // 1. If Riding Horse -> Dismount!
+    if (this.player.isRidingHorse) {
+      this.player.isRidingHorse = false;
+      this.player.speed = 2.3;
+      const horse = this.map.animals.find(a => a.type === 'horse');
+      if (horse) {
+        horse.x = this.player.x + 20;
+        horse.y = this.player.y;
+      }
+      this.showToast('🐴 말에서 내렸습니다.');
+      return;
+    }
+
+    // 2. Check Mounting Horse
+    const horse = this.map.animals.find(a => a.type === 'horse');
+    if (horse && Math.hypot(horse.x - this.player.x, horse.y - this.player.y) < 40) {
+      this.player.isRidingHorse = true;
+      this.player.speed = 4.2; // Double speed!
+      horse.x = -999; // Hide horse mesh while riding
+      window.hmAudio.playSFX('rooster');
+      this.showToast('🐴 말에 탑승했습니다! (이동속도 2배)');
+      return;
+    }
+
+    // 3. Drop Held Item into Shipping Bin
     if (this.player.heldItem) {
       if (tile === TILE_SHIPPING_BIN) {
         this.shippingBinItems.push({ ...this.player.heldItem });
@@ -164,7 +203,6 @@ class HarvestMoonGame {
         this.updateHUD();
         return;
       } else {
-        // Drop on ground or stow back into rucksack
         this.addItemToRucksack(this.player.heldItem);
         this.player.heldItem = null;
         this.updateHUD();
@@ -172,7 +210,7 @@ class HarvestMoonGame {
       }
     }
 
-    // 2. Check Harvesting Ripe Crop
+    // 4. Harvest Ripe Crop
     if (crop && crop.stage === 3) {
       window.hmAudio.playSFX('harvest_pop');
       this.player.heldItem = {
@@ -183,52 +221,56 @@ class HarvestMoonGame {
         count: 1
       };
       delete this.map.crops[cropKey];
-      this.showToast(`✨ ${this.player.heldItem.name} 수확 완료! (출하 상자로 운반하세요)`);
+      this.showToast(`✨ ${this.player.heldItem.name} 수확! (출하 상자에 넣으세요)`);
       this.updateHUD();
       return;
     }
 
-    // 3. Check Talking to Animals
+    // 5. Collect Egg from Chickens
     for (const a of this.map.animals) {
-      const dist = Math.hypot(a.x - (this.player.x + 10), a.y - (this.player.y + 10));
-      if (dist < 36) {
+      if (a.type === 'chicken' && a.hasEgg && Math.hypot(a.x - this.player.x, a.y - this.player.y) < 36) {
+        a.hasEgg = false;
         a.hearts = Math.min(5, a.hearts + 1);
-        if (a.type === 'cow') window.hmAudio.playSFX('cow_moo');
-        else window.hmAudio.playSFX('rooster');
-        this.showToast(`❤️ ${a.name}이(가) 기뻐합니다!`);
+        window.hmAudio.playSFX('harvest_pop');
+        this.player.heldItem = { id: 'fresh_egg', name: '신선한 달걀', icon: '🥚', sellPrice: 50, count: 1 };
+        this.showToast('🥚 신선한 달걀을 수집했습니다!');
+        this.updateHUD();
         return;
       }
     }
 
-    // 4. House Bed (Sleep & Advance Day)
+    // 6. Pet Animals
+    for (const a of this.map.animals) {
+      if (Math.hypot(a.x - this.player.x, a.y - this.player.y) < 36) {
+        a.hearts = Math.min(5, a.hearts + 1);
+        if (a.type === 'cow') window.hmAudio.playSFX('cow_moo');
+        else window.hmAudio.playSFX('rooster');
+        this.showToast(`❤️ ${a.name}이(가) 애정을 표현합니다!`);
+        return;
+      }
+    }
+
+    // 7. House Bed (Sleep)
     if (tile === TILE_HOUSE_DOOR) {
-      this.showDialog('내 집 (Farmhouse)', '🏡', '따뜻한 침대가 있습니다. 오늘 하루를 마무리하고 잠자리에 들겠습니까?');
-      setTimeout(() => {
-        this.advanceDay();
-      }, 1500);
+      this.showDialog('내 침실 (Farmhouse)', '🏡', '따뜻한 침대에서 잠자리에 들고 다음 날 아침을 맞이하시겠습니까?');
+      setTimeout(() => this.advanceDay(), 1400);
       return;
     }
 
-    // 5. Town Road (Pierre's Shop)
+    // 8. Town Road
     if (tile === TILE_TOWN_ROAD) {
       this.openShop();
       return;
     }
 
-    // 6. Check Weeds, Rocks, Branches on ground -> Pick Up!
+    // 9. Pick up forage items
     if (tile === TILE_WEED || tile === TILE_BRANCH || tile === TILE_ROCK) {
-      const itemNames = { [TILE_WEED]: '잡초', [TILE_BRANCH]: '나뭇가지', [TILE_ROCK]: '돌맹이' };
-      const itemIcons = { [TILE_WEED]: '🌿', [TILE_BRANCH]: '🪵', [TILE_ROCK]: '🪨' };
-      this.player.heldItem = {
-        id: 'forage',
-        name: itemNames[tile],
-        icon: itemIcons[tile],
-        sellPrice: 10,
-        count: 1
-      };
+      const names = { [TILE_WEED]: '잡초', [TILE_BRANCH]: '나뭇가지', [TILE_ROCK]: '돌맹이' };
+      const icons = { [TILE_WEED]: '🌿', [TILE_BRANCH]: '🪵', [TILE_ROCK]: '🪨' };
+      this.player.heldItem = { id: 'forage', name: names[tile], icon: icons[tile], sellPrice: 15, count: 1 };
       this.map.setTile(frontTilePos.tx, frontTilePos.ty, TILE_GRASS);
       window.hmAudio.playSFX('harvest_pop');
-      this.showToast(`${itemNames[tile]}을(를) 주웠습니다!`);
+      this.showToast(`${names[tile]}을(를) 주웠습니다!`);
       this.updateHUD();
       return;
     }
@@ -247,7 +289,7 @@ class HarvestMoonGame {
     const tile = this.map.getTile(frontTilePos.tx, frontTilePos.ty);
     const cropKey = `${frontTilePos.tx},${frontTilePos.ty}`;
 
-    // 1. Hoe: Till Soil
+    // 1. Hoe
     if (tool.id === 'hoe') {
       if (tile === TILE_GRASS || tile === TILE_DIRT_PATH) {
         this.map.setTile(frontTilePos.tx, frontTilePos.ty, TILE_SOIL_DRY);
@@ -256,16 +298,15 @@ class HarvestMoonGame {
         this.updateHUD();
       }
     }
-
-    // 2. Watering Can: Water Soil
+    // 2. Can
     else if (tool.id === 'can') {
       if (tile === TILE_WATER || tile === TILE_WELL) {
         tool.water = tool.maxWater;
         window.hmAudio.playSFX('water_pour');
         this.showToast('💧 물뿌리개에 물을 가득 채웠습니다!');
+        this.updateHUD();
         return;
       }
-
       if (tool.water > 0 && (tile === TILE_SOIL_DRY || tile === TILE_SOIL_WATERED)) {
         tool.water--;
         this.map.setTile(frontTilePos.tx, frontTilePos.ty, TILE_SOIL_WATERED);
@@ -274,52 +315,69 @@ class HarvestMoonGame {
         this.updateHUD();
       }
     }
-
-    // 3. Planting Seeds
+    // 3. Seeds
     else if (tool.isSeed && tool.count > 0) {
       if ((tile === TILE_SOIL_DRY || tile === TILE_SOIL_WATERED) && !this.map.crops[cropKey]) {
         tool.count--;
+        const cropConfigs = {
+          turnip: { name: '순무', icon: '🥬', maxDays: 4, price: 60 },
+          strawberry: { name: '딸기', icon: '🍓', maxDays: 6, price: 120 },
+          corn: { name: '옥수수', icon: '🌽', maxDays: 5, price: 160 },
+          pumpkin: { name: '호박', icon: '🎃', maxDays: 6, price: 280 }
+        };
+        const cfg = cropConfigs[tool.cropId] || cropConfigs.turnip;
         this.map.crops[cropKey] = {
           id: tool.cropId,
-          name: tool.cropId === 'turnip' ? '순무' : '딸기',
-          icon: tool.cropId === 'turnip' ? '🥬' : '🍓',
+          name: cfg.name,
+          icon: cfg.icon,
           stage: 0,
-          maxDays: tool.cropId === 'turnip' ? 4 : 6,
+          maxDays: cfg.maxDays,
           daysGrown: 0,
           watered: tile === TILE_SOIL_WATERED,
-          sellPrice: tool.cropId === 'turnip' ? 60 : 120
+          sellPrice: cfg.price
         };
         window.hmAudio.playSFX('harvest_pop');
         this.showToast(`${tool.name} 파종 완료 🌱`);
         this.updateHUD();
       }
     }
-
-    // 4. Milker: Milk Cow
+    // 4. Milker
     else if (tool.id === 'milker') {
       for (const a of this.map.animals) {
-        if (a.type === 'cow' && Math.hypot(a.x - this.player.x, a.y - this.player.y) < 40) {
+        if (a.type === 'cow' && a.hasMilk && Math.hypot(a.x - this.player.x, a.y - this.player.y) < 40) {
+          a.hasMilk = false;
           window.hmAudio.playSFX('cow_moo');
-          this.player.heldItem = { id: 'milk_s', name: '신선한 우유 (S)', icon: '🥛', sellPrice: 150, count: 1 };
-          this.showToast('🥛 고소한 우유를 짰습니다!');
+          this.player.heldItem = { id: 'milk', name: '신선한 목장 우유 (L)', icon: '🥛', sellPrice: 160, count: 1 };
+          this.showToast('🥛 신선한 우유를 짰습니다!');
           this.updateHUD();
           return;
         }
       }
     }
-
-    // 5. Hammer / Axe / Sickle
+    // 5. Clippers (Shear Sheep)
+    else if (tool.id === 'clippers') {
+      for (const a of this.map.animals) {
+        if (a.type === 'sheep' && a.hasWool && Math.hypot(a.x - this.player.x, a.y - this.player.y) < 40) {
+          a.hasWool = false;
+          window.hmAudio.playSFX('harvest_pop');
+          this.player.heldItem = { id: 'wool', name: '최고급 양모', icon: '🧶', sellPrice: 240, count: 1 };
+          this.showToast('🧶 부드러운 양모를 깎았습니다!');
+          this.updateHUD();
+          return;
+        }
+      }
+    }
+    // 6. Hammer
     else if (tool.id === 'hammer' && tile === TILE_ROCK) {
       this.map.setTile(frontTilePos.tx, frontTilePos.ty, TILE_GRASS);
-      this.player.heldItem = { id: 'copper_ore', name: '구리 광석', icon: '🪨', sellPrice: 80, count: 1 };
+      this.player.heldItem = { id: 'gold_ore', name: '반짝이는 금광석 (Gold Ore)', icon: '✨', sellPrice: 150, count: 1 };
       window.hmAudio.playSFX('hoe_dig');
-      this.showToast('망치로 바위를 깨서 광석을 얻었습니다!');
+      this.showToast('망치로 바위를 깨서 금광석을 채굴했습니다!');
       this.updateHUD();
     }
   }
 
   handleActionY() {
-    // Quick-swap tool
     this.equippedToolIdx = (this.equippedToolIdx + 1) % this.tools.length;
     window.hmAudio.playSFX('harvest_pop');
     this.updateHUD();
@@ -348,8 +406,8 @@ class HarvestMoonGame {
         <div class="shop-item-info">
           <span class="item-icon">🌱</span>
           <div>
-            <div class="item-title">순무 씨앗 (Turnip Seeds)</div>
-            <div class="item-desc">봄 작물 · 4일 후 수확 (판매가: 60G)</div>
+            <div class="item-title">순무 씨앗 (Turnip Seeds) x3</div>
+            <div class="item-desc">4일 후 수확 (판매가: 60G)</div>
           </div>
         </div>
         <button class="btn-buy-item" id="buy-turnip">120 G</button>
@@ -358,21 +416,31 @@ class HarvestMoonGame {
         <div class="shop-item-info">
           <span class="item-icon">🍓</span>
           <div>
-            <div class="item-title">딸기 씨앗 (Strawberry Seeds)</div>
-            <div class="item-desc">봄 작물 · 6일 후 수확 (판매가: 120G)</div>
+            <div class="item-title">딸기 씨앗 (Strawberry Seeds) x3</div>
+            <div class="item-desc">6일 후 수확 (판매가: 120G)</div>
           </div>
         </div>
-        <button class="btn-buy-item" id="buy-straw">150 G</button>
+        <button class="btn-buy-item" id="buy-straw">180 G</button>
       </div>
       <div class="shop-item-row">
         <div class="shop-item-info">
-          <span class="item-icon">🌾</span>
+          <span class="item-icon">🌽</span>
           <div>
-            <div class="item-title">목장 사료 (Fodder) x5</div>
-            <div class="item-desc">가축들의 일용할 양식</div>
+            <div class="item-title">옥수수 씨앗 (Corn Seeds) x3</div>
+            <div class="item-desc">5일 후 수확 (판매가: 160G)</div>
           </div>
         </div>
-        <button class="btn-buy-item" id="buy-feed">50 G</button>
+        <button class="btn-buy-item" id="buy-corn">200 G</button>
+      </div>
+      <div class="shop-item-row">
+        <div class="shop-item-info">
+          <span class="item-icon">🎃</span>
+          <div>
+            <div class="item-title">호박 씨앗 (Pumpkin Seeds) x3</div>
+            <div class="item-desc">6일 후 대왕 호박 수확 (판매가: 280G)</div>
+          </div>
+        </div>
+        <button class="btn-buy-item" id="buy-pump">250 G</button>
       </div>
     `;
 
@@ -382,7 +450,16 @@ class HarvestMoonGame {
         this.tools.find(t => t.id === 'seed_turnip').count += 3;
         window.hmAudio.playSFX('coin');
         this.updateHUD();
-        this.showToast('순무 씨앗 구매 완료!');
+        this.showToast('순무 씨앗 3개 구매 완료!');
+      }
+    };
+    document.getElementById('buy-straw').onclick = () => {
+      if (this.gold >= 180) {
+        this.gold -= 180;
+        this.tools.find(t => t.id === 'seed_straw').count += 3;
+        window.hmAudio.playSFX('coin');
+        this.updateHUD();
+        this.showToast('딸기 씨앗 3개 구매 완료!');
       }
     };
   }
@@ -424,7 +501,6 @@ class HarvestMoonGame {
   }
 
   advanceDay() {
-    // 1. 5:00 PM Zack settlement if any
     let revenue = 0;
     const list = document.getElementById('shipping-list-container');
     list.innerHTML = '';
@@ -446,13 +522,32 @@ class HarvestMoonGame {
       document.getElementById('modal-shipping').classList.remove('hidden');
     }
 
-    // 2. Advance Day & Clock to 6:00 AM
     this.day++;
+    if (this.day > 30) {
+      this.day = 1;
+      this.seasonIdx = (this.seasonIdx + 1) % this.seasons.length;
+    }
+
     this.timeMinutes = 360; // 6:00 AM
     this.player.stamina = this.player.maxStamina;
     this.player.x = 180;
     this.player.y = 130;
+    this.player.isRidingHorse = false;
+    this.player.speed = 2.3;
+
+    // Reset Horse Position
+    const horse = this.map.animals.find(a => a.type === 'horse');
+    if (horse) { horse.x = 260; horse.y = 580; }
+
+    // Restore Eggs & Milk on Animals
+    this.map.animals.forEach(a => {
+      if (a.type === 'chicken') a.hasEgg = true;
+      if (a.type === 'cow') a.hasMilk = true;
+      if (a.type === 'sheep') a.hasWool = true;
+    });
+
     this.map.advanceDay(this);
+    this.saveGame();
 
     window.hmAudio.playSFX('rooster');
     this.updateHUD();
@@ -480,20 +575,46 @@ class HarvestMoonGame {
     setTimeout(() => toast.classList.add('toast-hidden'), 2200);
   }
 
+  saveGame() {
+    try {
+      const data = {
+        gold: this.gold,
+        day: this.day,
+        seasonIdx: this.seasonIdx,
+        rucksack: this.rucksack,
+        crops: this.map.crops
+      };
+      localStorage.setItem('hm_save_data', JSON.stringify(data));
+    } catch(e) {}
+  }
+
+  loadGame() {
+    try {
+      const raw = localStorage.getItem('hm_save_data');
+      if (raw) {
+        const data = JSON.parse(raw);
+        if (data.gold) this.gold = data.gold;
+        if (data.day) this.day = data.day;
+        if (data.seasonIdx) this.seasonIdx = data.seasonIdx;
+        if (data.rucksack) this.rucksack = data.rucksack;
+        if (data.crops) this.map.crops = data.crops;
+      }
+    } catch(e) {}
+  }
+
   updateHUD() {
     document.getElementById('hud-gold').innerText = `${this.gold.toLocaleString()} G`;
+    document.getElementById('hud-season').innerText = this.seasons[this.seasonIdx];
     document.getElementById('hud-day').innerText = `${this.day}일 (${this.dayNames[(this.day - 1) % 7]})`;
     document.getElementById('hud-stamina-fill').style.width = `${(this.player.stamina / this.player.maxStamina) * 100}%`;
-    document.getElementById('hud-stamina-val').innerText = this.player.stamina;
+    document.getElementById('hud-stamina-val').innerText = Math.round(this.player.stamina);
 
-    // Clock
     const h = Math.floor(this.timeMinutes / 60);
     const m = Math.floor(this.timeMinutes % 60);
     const ampm = h >= 12 ? 'PM' : 'AM';
     const dh = h % 12 === 0 ? 12 : h % 12;
     document.getElementById('hud-clock').innerText = `${ampm} ${dh < 10 ? '0' : ''}${dh}:${m < 10 ? '0' : ''}${m}`;
 
-    // Held Tool
     const curTool = this.tools[this.equippedToolIdx];
     if (this.player.heldItem) {
       document.getElementById('hud-tool-icon').innerText = this.player.heldItem.icon;
@@ -505,12 +626,11 @@ class HarvestMoonGame {
       document.getElementById('hud-tool-sub').innerText = curTool.sub;
     }
 
-    // Sky Lighting Filter
     const filter = document.getElementById('weather-filter');
     if (h >= 17 && h < 20) {
-      filter.style.backgroundColor = 'rgba(234, 88, 12, 0.2)'; // 5:00 PM Golden Sunset
+      filter.style.backgroundColor = 'rgba(234, 88, 12, 0.2)';
     } else if (h >= 20 || h < 6) {
-      filter.style.backgroundColor = 'rgba(15, 23, 42, 0.55)'; // Night
+      filter.style.backgroundColor = 'rgba(15, 23, 42, 0.55)';
     } else {
       filter.style.backgroundColor = 'rgba(0, 0, 0, 0)';
     }
@@ -526,19 +646,19 @@ class HarvestMoonGame {
   }
 
   update() {
-    // 1. Advance Clock
+    // 1. Clock
     this.timeMinutes += 0.05;
-    if (this.timeMinutes >= 1020 && !this.zackShippedToday) { // 5:00 PM (17:00)
+    if (this.timeMinutes >= 1020 && !this.zackShippedToday) {
       this.zackShippedToday = true;
       window.hmAudio.playSFX('coin');
       this.showToast('🤠 잭(Zack)이 출하 상자의 농산물을 회수해 갔습니다!');
     }
-    if (this.timeMinutes >= 1440) { // 12:00 AM Pass out!
+    if (this.timeMinutes >= 1440) {
       this.advanceDay();
     }
     this.updateHUD();
 
-    // 2. Hot Spring Rapid Stamina Recovery!
+    // 2. Hot Spring Recovery
     const curTx = Math.floor(this.player.x / this.map.tileSize);
     const curTy = Math.floor(this.player.y / this.map.tileSize);
     if (this.map.getTile(curTx, curTy) === TILE_HOTSPRING) {
@@ -561,7 +681,6 @@ class HarvestMoonGame {
       this.player.x += (dx / len) * this.player.speed;
       this.player.y += (dy / len) * this.player.speed;
 
-      // Bound within map
       this.player.x = Math.max(16, Math.min(this.map.cols * this.map.tileSize - 32, this.player.x));
       this.player.y = Math.max(16, Math.min(this.map.rows * this.map.tileSize - 32, this.player.y));
     } else {
@@ -578,7 +697,7 @@ class HarvestMoonGame {
     const ts = map.tileSize;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Draw Map Tiles
+    // Tiles
     for (let y = 0; y < map.rows; y++) {
       for (let x = 0; x < map.cols; x++) {
         const tile = map.grid[y][x];
@@ -603,7 +722,7 @@ class HarvestMoonGame {
         } else if (tile === TILE_HOTSPRING) {
           ctx.fillStyle = '#67e8f9';
           ctx.fillRect(sx, sy, ts, ts);
-          ctx.fillStyle = 'rgba(255,255,255,0.6)';
+          ctx.fillStyle = 'rgba(255,255,255,0.7)';
           ctx.fillText('♨️', sx + 6, sy + 22);
         } else if (tile === TILE_SHIPPING_BIN) {
           ctx.fillStyle = '#854d0e';
@@ -652,7 +771,7 @@ class HarvestMoonGame {
       }
     }
 
-    // Draw Crops
+    // Crops
     for (const [key, crop] of Object.entries(map.crops)) {
       const [tx, ty] = key.split(',').map(Number);
       const sx = tx * ts - camera.x + ts / 2;
@@ -660,12 +779,13 @@ class HarvestMoonGame {
       SpriteRenderer.drawCrop(ctx, sx, sy, crop);
     }
 
-    // Draw Animals
+    // Animals (including Horse)
     map.animals.forEach(a => {
+      if (a.type === 'horse' && this.player.isRidingHorse) return;
       SpriteRenderer.drawAnimal(ctx, a.x - camera.x, a.y - camera.y, a, this.player.walkFrame);
     });
 
-    // Draw Player
+    // Player
     SpriteRenderer.drawPlayer(
       ctx,
       this.player.x - camera.x,
@@ -673,7 +793,8 @@ class HarvestMoonGame {
       this.player.dir,
       this.player.isMoving,
       this.player.walkFrame,
-      this.player.heldItem
+      this.player.heldItem,
+      this.player.isRidingHorse
     );
   }
 }
