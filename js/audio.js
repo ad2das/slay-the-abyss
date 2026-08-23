@@ -1,15 +1,14 @@
 /* ==========================================================================
-   SUNNYVALE MEADOW - COZY PROCEDURAL AUDIO SYNTHESIZER
-   Peaceful Studio Ghibli-style piano chords, bird ambient & farming foley
+   HARVEST MOON: MINERAL MEADOW - RETRO AUDIO ENGINE
+   6 AM Rooster Crow, Cow Moo, Tool Foley & Cheerful Spring BGM
    ========================================================================== */
 
-class CozyAudio {
+class HarvestMoonAudio {
   constructor() {
     this.ctx = null;
     this.masterGain = null;
     this.sfxGain = null;
     this.bgmGain = null;
-    this.enabled = true;
     this.bgmInterval = null;
   }
 
@@ -20,15 +19,15 @@ class CozyAudio {
       this.ctx = new AudioCtx();
 
       this.masterGain = this.ctx.createGain();
-      this.masterGain.gain.setValueAtTime(0.7, this.ctx.currentTime);
+      this.masterGain.gain.setValueAtTime(0.75, this.ctx.currentTime);
       this.masterGain.connect(this.ctx.destination);
 
       this.sfxGain = this.ctx.createGain();
-      this.sfxGain.gain.setValueAtTime(0.65, this.ctx.currentTime);
+      this.sfxGain.gain.setValueAtTime(0.7, this.ctx.currentTime);
       this.sfxGain.connect(this.masterGain);
 
       this.bgmGain = this.ctx.createGain();
-      this.bgmGain.gain.setValueAtTime(0.24, this.ctx.currentTime);
+      this.bgmGain.gain.setValueAtTime(0.22, this.ctx.currentTime);
       this.bgmGain.connect(this.masterGain);
     } catch (e) {
       console.warn("Web Audio not supported:", e);
@@ -42,85 +41,71 @@ class CozyAudio {
   }
 
   playSFX(type) {
-    if (!this.enabled || !this.ctx) return;
+    if (!this.ctx) this.init();
     this.resume();
     const t = this.ctx.currentTime;
 
     switch (type) {
-      case 'till_soil': {
-        // Soft earthy dig thud
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(140, t);
-        osc.frequency.exponentialRampToValueAtTime(45, t + 0.12);
-        gain.gain.setValueAtTime(0.4, t);
-        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.12);
-        osc.connect(gain);
-        gain.connect(this.sfxGain);
-        osc.start(t);
-        osc.stop(t + 0.12);
-        break;
-      }
-
-      case 'water_splash': {
-        // Gentle water droplet sprinkle
-        [520, 680, 840].forEach((freq, idx) => {
+      case 'rooster': {
+        // 6:00 AM Rooster Morning Crow (Cock-a-doodle-doo!)
+        [440, 554, 659, 880].forEach((freq, i) => {
           const osc = this.ctx.createOscillator();
           const gain = this.ctx.createGain();
-          const noteTime = t + idx * 0.04;
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(freq, noteTime);
-          gain.gain.setValueAtTime(0.2, noteTime);
-          gain.gain.exponentialRampToValueAtTime(0.001, noteTime + 0.08);
+          const nt = t + i * 0.12;
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(freq, nt);
+          gain.gain.setValueAtTime(0.3, nt);
+          gain.gain.exponentialRampToValueAtTime(0.01, nt + 0.35);
           osc.connect(gain);
           gain.connect(this.sfxGain);
-          osc.start(noteTime);
-          osc.stop(noteTime + 0.08);
+          osc.start(nt);
+          osc.stop(nt + 0.35);
         });
         break;
       }
 
-      case 'plant_seed': {
-        // Soft rustle
+      case 'hoe_dig': {
+        // Crisp earthy hoe thud
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(350, t);
-        osc.frequency.exponentialRampToValueAtTime(600, t + 0.07);
-        gain.gain.setValueAtTime(0.25, t);
-        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.07);
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(160, t);
+        osc.frequency.exponentialRampToValueAtTime(50, t + 0.1);
+        gain.gain.setValueAtTime(0.4, t);
+        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
         osc.connect(gain);
         gain.connect(this.sfxGain);
         osc.start(t);
-        osc.stop(t + 0.07);
+        osc.stop(t + 0.1);
+        break;
+      }
+
+      case 'water_pour': {
+        // Water sprinkle
+        [600, 750, 900].forEach((freq, i) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          const nt = t + i * 0.05;
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, nt);
+          gain.gain.setValueAtTime(0.2, nt);
+          gain.gain.exponentialRampToValueAtTime(0.001, nt + 0.09);
+          osc.connect(gain);
+          gain.connect(this.sfxGain);
+          osc.start(nt);
+          osc.stop(nt + 0.09);
+        });
         break;
       }
 
       case 'harvest_pop': {
-        // Satisfying harvest pop chime!
+        // Iconic Harvest Moon high pop
         const osc = this.ctx.createOscillator();
         const gain = this.ctx.createGain();
         osc.type = 'sine';
-        osc.frequency.setValueAtTime(587.33, t); // D5
+        osc.frequency.setValueAtTime(523.25, t); // C5
         osc.frequency.exponentialRampToValueAtTime(1046.50, t + 0.14); // C6
         gain.gain.setValueAtTime(0.4, t);
-        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
-        osc.connect(gain);
-        gain.connect(this.sfxGain);
-        osc.start(t);
-        osc.stop(t + 0.16);
-        break;
-      }
-
-      case 'coin': {
-        // Golden chime
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(987.77, t);
-        osc.frequency.setValueAtTime(1318.51, t + 0.06);
-        gain.gain.setValueAtTime(0.3, t);
         gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
         osc.connect(gain);
         gain.connect(this.sfxGain);
@@ -129,67 +114,88 @@ class CozyAudio {
         break;
       }
 
-      case 'pet_heart': {
-        // High harmonic love chime
-        [659.25, 783.99, 1046.50].forEach((freq, i) => {
-          const osc = this.ctx.createOscillator();
-          const gain = this.ctx.createGain();
-          const noteTime = t + i * 0.06;
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(freq, noteTime);
-          gain.gain.setValueAtTime(0.25, noteTime);
-          gain.gain.exponentialRampToValueAtTime(0.001, noteTime + 0.14);
-          osc.connect(gain);
-          gain.connect(this.sfxGain);
-          osc.start(noteTime);
-          osc.stop(noteTime + 0.14);
-        });
+      case 'ship_item': {
+        // Drop in shipping box thud
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(220, t);
+        osc.frequency.exponentialRampToValueAtTime(80, t + 0.12);
+        gain.gain.setValueAtTime(0.3, t);
+        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.12);
+        osc.connect(gain);
+        gain.connect(this.sfxGain);
+        osc.start(t);
+        osc.stop(t + 0.12);
+        break;
+      }
+
+      case 'cow_moo': {
+        // Cute cow moo
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(150, t);
+        osc.frequency.linearRampToValueAtTime(120, t + 0.4);
+        gain.gain.setValueAtTime(0.35, t);
+        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.45);
+        osc.connect(gain);
+        gain.connect(this.sfxGain);
+        osc.start(t);
+        osc.stop(t + 0.45);
+        break;
+      }
+
+      case 'coin': {
+        // Zack payment chime
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(987.77, t);
+        osc.frequency.setValueAtTime(1318.51, t + 0.08);
+        gain.gain.setValueAtTime(0.35, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+        osc.connect(gain);
+        gain.connect(this.sfxGain);
+        osc.start(t);
+        osc.stop(t + 0.18);
         break;
       }
     }
   }
 
-  startPeacefulBGM() {
+  startSpringBGM() {
     if (this.bgmInterval) return;
     this.init();
     let step = 0;
-    
-    // Relaxing C major - F major - G major - A minor Studio Ghibli piano loop
-    const chords = [
-      [261.63, 329.63, 392.00, 523.25], // Cmaj
-      [349.23, 440.00, 523.25, 698.46], // Fmaj
-      [392.00, 493.88, 587.33, 783.99], // Gmaj
-      [220.00, 261.63, 329.63, 440.00]  // Amin
+
+    // Harvest Moon: Friends of Mineral Town inspired Spring melody
+    const notes = [
+      523.25, 659.25, 783.99, 1046.50, // C - E - G - C
+      659.25, 783.99, 880.00, 1046.50, // E - G - A - C
+      587.33, 698.46, 880.00, 1174.66, // D - F - A - D
+      783.99, 987.77, 1174.66, 1567.98 // G - B - D - G
     ];
 
     this.bgmInterval = setInterval(() => {
-      if (!this.enabled || !this.ctx) return;
+      if (!this.ctx) return;
       const t = this.ctx.currentTime;
-      const chord = chords[step % chords.length];
+      const freq = notes[step % notes.length];
 
-      // Arpeggiated soft piano notes
-      chord.forEach((freq, idx) => {
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        const noteTime = t + idx * 0.28;
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(freq, noteTime);
-
-        gain.gain.setValueAtTime(0.04, noteTime);
-        gain.gain.linearRampToValueAtTime(0.08, noteTime + 0.4);
-        gain.gain.exponentialRampToValueAtTime(0.001, noteTime + 2.4);
-
-        osc.connect(gain);
-        gain.connect(this.bgmGain);
-        osc.start(noteTime);
-        osc.stop(noteTime + 2.4);
-      });
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, t);
+      gain.gain.setValueAtTime(0.06, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+      osc.connect(gain);
+      gain.connect(this.bgmGain);
+      osc.start(t);
+      osc.stop(t + 0.4);
 
       step++;
-    }, 4000);
+    }, 450);
   }
 }
 
-window.cozyAudio = new CozyAudio();
-
-// 2. crops.js
+window.hmAudio = new HarvestMoonAudio();

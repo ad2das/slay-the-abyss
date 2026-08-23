@@ -1,212 +1,173 @@
 /* ==========================================================================
-   SLAY THE ABYSS - SPIRE MAP GENERATOR & NODE TREE
+   HARVEST MOON: MINERAL MEADOW - MAP & WORLD TILES ENGINE
+   Farm, House Interior, Barn, Coop, Hot Springs, Mine & Town Transitions
    ========================================================================== */
 
-class SpireMap {
-  constructor(totalFloors = 15) {
-    this.totalFloors = totalFloors;
-    this.floors = [];
-    this.currentNode = null;
-    this.visitedNodes = new Set();
+const TILE_GRASS = 0;
+const TILE_DIRT_PATH = 1;
+const TILE_SOIL_DRY = 2;
+const TILE_SOIL_WATERED = 3;
+const TILE_WATER = 4;
+const TILE_FENCE = 5;
+const TILE_HOUSE_WALL = 6;
+const TILE_HOUSE_ROOF = 7;
+const TILE_HOUSE_DOOR = 8;
+const TILE_SHIPPING_BIN = 9;
+const TILE_WELL = 10;
+const TILE_COOP_DOOR = 11;
+const TILE_BARN_DOOR = 12;
+const TILE_HOTSPRING = 13;
+const TILE_MINE_ENTRANCE = 14;
+const TILE_TOWN_ROAD = 15;
+const TILE_ROCK = 16;
+const TILE_BRANCH = 17;
+const TILE_WEED = 18;
+
+class WorldMap {
+  constructor(cols = 32, rows = 24, tileSize = 32) {
+    this.cols = cols;
+    this.rows = rows;
+    this.tileSize = tileSize;
+    this.grid = [];
+    this.crops = {}; // "x,y": { id, name, icon, stage, maxDays, daysGrown, watered, regrows, sellPrice }
+    this.animals = [];
+    this.currentZone = 'farm'; // 'farm', 'house', 'coop', 'barn', 'mine'
+
+    this.initFarmMap();
   }
 
-  generate() {
-    this.floors = [];
-    this.visitedNodes = new Set();
-    this.currentNode = null;
+  initFarmMap() {
+    this.grid = Array(this.rows).fill(null).map(() => Array(this.cols).fill(TILE_GRASS));
 
-    const laneCount = 4;
+    // 1. Natural River & Lake (Right side)
+    for (let y = 0; y < this.rows; y++) {
+      for (let x = 26; x < 30; x++) {
+        this.grid[y][x] = TILE_WATER;
+      }
+    }
 
-    for (let f = 0; f < this.totalFloors; f++) {
-      const floorNodes = [];
+    // 2. Dirt Paths
+    for (let x = 4; x < 26; x++) this.grid[10][x] = TILE_DIRT_PATH;
+    for (let y = 3; y < 22; y++) this.grid[y][10] = TILE_DIRT_PATH;
 
-      if (f === 0) {
-        // Floor 1: 3-4 Starter Monster nodes
-        for (let l = 0; l < laneCount; l++) {
-          floorNodes.push({
-            id: `f0_l${l}`,
-            floor: 0,
-            lane: l,
-            type: 'monster',
-            icon: '⚔️',
-            name: '일반 몬스터',
-            connections: []
-          });
-        }
-      } else if (f === this.totalFloors - 1) {
-        // Floor 15: Boss
-        floorNodes.push({
-          id: `f${f}_boss`,
-          floor: f,
-          lane: 1.5,
-          type: 'boss',
-          icon: '👹',
-          name: '첨탑의 수호자 (BOSS)',
-          connections: []
-        });
-      } else if (f === this.totalFloors - 2) {
-        // Floor 14: Guaranteed Campfire before Boss
-        for (let l = 1; l <= 2; l++) {
-          floorNodes.push({
-            id: `f${f}_l${l}`,
-            floor: f,
-            lane: l,
-            type: 'rest',
-            icon: '⛺',
-            name: '휴식처',
-            connections: []
-          });
-        }
-      } else {
-        // Intermediate Floors
-        const numNodesInFloor = Math.floor(Math.random() * 2) + 3; // 3 to 4 nodes
-        const possibleTypes = ['monster', 'monster', 'unknown', 'unknown', 'rest', 'shop'];
-        if (f >= 5) possibleTypes.push('elite');
+    // 3. Farmer House (Top-Left)
+    this.grid[2][4] = TILE_HOUSE_ROOF;
+    this.grid[2][5] = TILE_HOUSE_ROOF;
+    this.grid[2][6] = TILE_HOUSE_ROOF;
+    this.grid[3][4] = TILE_HOUSE_WALL;
+    this.grid[3][5] = TILE_HOUSE_DOOR;
+    this.grid[3][6] = TILE_HOUSE_WALL;
 
-        for (let n = 0; n < numNodesInFloor; n++) {
-          const l = n;
-          const chosenType = possibleTypes[Math.floor(Math.random() * possibleTypes.length)];
-          const icons = {
-            monster: '⚔️',
-            elite: '💀',
-            unknown: '❓',
-            rest: '⛺',
-            shop: '💰'
-          };
-          const names = {
-            monster: '일반 몬스터',
-            elite: '강력한 엘리트',
-            unknown: '미지의 방',
-            rest: '휴식처',
-            shop: '상점'
-          };
+    // 4. Shipping Bin (Next to house path)
+    this.grid[5][8] = TILE_SHIPPING_BIN;
 
-          floorNodes.push({
-            id: `f${f}_l${l}`,
-            floor: f,
-            lane: l,
-            type: chosenType,
-            icon: icons[chosenType],
-            name: names[chosenType],
-            connections: []
-          });
+    // 5. Water Well
+    this.grid[7][8] = TILE_WELL;
+
+    // 6. Chicken Coop (Mid-Left)
+    this.grid[13][3] = TILE_HOUSE_ROOF;
+    this.grid[13][4] = TILE_HOUSE_ROOF;
+    this.grid[14][3] = TILE_HOUSE_WALL;
+    this.grid[14][4] = TILE_COOP_DOOR;
+
+    // 7. Animal Barn (Bottom-Left)
+    this.grid[18][3] = TILE_HOUSE_ROOF;
+    this.grid[18][4] = TILE_HOUSE_ROOF;
+    this.grid[18][5] = TILE_HOUSE_ROOF;
+    this.grid[19][3] = TILE_HOUSE_WALL;
+    this.grid[19][4] = TILE_BARN_DOOR;
+    this.grid[19][5] = TILE_HOUSE_WALL;
+
+    // 8. Hot Spring (Top-Right)
+    for (let y = 2; y < 6; y++) {
+      for (let x = 20; x < 24; x++) {
+        this.grid[y][x] = TILE_HOTSPRING;
+      }
+    }
+
+    // 9. Mine Cave Entrance (Top-Mid)
+    this.grid[1][14] = TILE_MINE_ENTRANCE;
+
+    // 10. Town Road Exit (Far-Right)
+    this.grid[10][31] = TILE_TOWN_ROAD;
+
+    // 11. Tillable 3x3 Crop Fields
+    for (let y = 12; y < 20; y++) {
+      for (let x = 13; x < 23; x++) {
+        this.grid[y][x] = TILE_SOIL_DRY;
+      }
+    }
+
+    // 12. Pre-planted Turnips & Strawberries
+    this.crops['14,14'] = { id: 'turnip', name: '순무 (Turnip)', icon: '🥬', stage: 2, maxDays: 4, daysGrown: 3, watered: true, sellPrice: 60 };
+    this.crops['15,14'] = { id: 'turnip', name: '순무 (Turnip)', icon: '🥬', stage: 3, maxDays: 4, daysGrown: 4, watered: true, sellPrice: 60 };
+    this.crops['16,14'] = { id: 'strawberry', name: '딸기 (Strawberry)', icon: '🍓', stage: 3, maxDays: 6, daysGrown: 6, watered: true, sellPrice: 120 };
+
+    // 13. Obstacles (Weeds, Rocks, Branches)
+    this.grid[12][13] = TILE_WEED;
+    this.grid[13][19] = TILE_ROCK;
+    this.grid[17][21] = TILE_BRANCH;
+
+    // 14. Animals
+    this.animals = [
+      { id: 'dog', type: 'dog', name: '바둑이', icon: '🐕', x: 280, y: 160, hearts: 3 },
+      { id: 'chick1', type: 'chicken', name: '꼬꼬 1호', icon: '🐔', x: 140, y: 480, hearts: 2 },
+      { id: 'chick2', type: 'chicken', name: '꼬꼬 2호', icon: '🐔', x: 180, y: 500, hearts: 1 },
+      { id: 'cow1', type: 'cow', name: '얼룩소 한우', icon: '🐮', x: 160, y: 640, hearts: 4 },
+      { id: 'sheep1', type: 'sheep', name: '폭신이', icon: '🐑', x: 200, y: 660, hearts: 3 }
+    ];
+  }
+
+  getTile(tx, ty) {
+    if (tx < 0 || tx >= this.cols || ty < 0 || ty >= this.rows) return null;
+    return this.grid[ty][tx];
+  }
+
+  setTile(tx, ty, tile) {
+    if (tx >= 0 && tx < this.cols && ty >= 0 && ty < this.rows) {
+      this.grid[ty][tx] = tile;
+    }
+  }
+
+  advanceDay(game) {
+    // Advance crops
+    for (const [key, crop] of Object.entries(this.crops)) {
+      const [tx, ty] = key.split(',').map(Number);
+      const isWatered = this.grid[ty][tx] === TILE_SOIL_WATERED;
+
+      if (isWatered) {
+        crop.daysGrown++;
+        if (crop.daysGrown >= crop.maxDays) {
+          crop.stage = 3; // Ripe!
+        } else if (crop.daysGrown >= crop.maxDays * 0.6) {
+          crop.stage = 2;
+        } else if (crop.daysGrown >= crop.maxDays * 0.3) {
+          crop.stage = 1;
         }
       }
 
-      this.floors.push(floorNodes);
-    }
-
-    // Connect nodes upwards
-    for (let f = 0; f < this.totalFloors - 1; f++) {
-      const currentFloor = this.floors[f];
-      const nextFloor = this.floors[f + 1];
-
-      currentFloor.forEach(node => {
-        if (nextFloor.length === 1) {
-          // Boss node
-          node.connections.push(nextFloor[0].id);
-        } else {
-          // Connect to 1-2 nearest nodes in next floor
-          nextFloor.forEach(nextNode => {
-            if (Math.abs(node.lane - nextNode.lane) <= 1.2) {
-              node.connections.push(nextNode.id);
-            }
-          });
-          if (node.connections.length === 0) {
-            node.connections.push(nextFloor[0].id);
-          }
-        }
-      });
-    }
-
-    return this.floors;
-  }
-
-  getReachableNodes() {
-    if (!this.currentNode) {
-      // First floor nodes are all reachable
-      return this.floors[0].map(n => n.id);
-    }
-    const currentObj = this.findNode(this.currentNode);
-    return currentObj ? currentObj.connections : [];
-  }
-
-  findNode(nodeId) {
-    for (const fl of this.floors) {
-      for (const n of fl) {
-        if (n.id === nodeId) return n;
+      // Reset soil moisture
+      if (this.grid[ty][tx] === TILE_SOIL_WATERED) {
+        this.grid[ty][tx] = TILE_SOIL_DRY;
       }
-    }
-    return null;
-  }
-
-  render(containerEl, svgEl, onNodeSelect) {
-    containerEl.innerHTML = '';
-    svgEl.innerHTML = '';
-
-    const width = containerEl.clientWidth || 700;
-    const height = 1100;
-    containerEl.style.height = `${height}px`;
-
-    const floorHeight = height / (this.totalFloors + 1);
-    const reachableIds = new Set(this.getReachableNodes());
-
-    // 1. Draw SVG Connecting Lines
-    for (let f = 0; f < this.totalFloors - 1; f++) {
-      this.floors[f].forEach(node => {
-        const x1 = ((node.lane + 0.5) / 4) * width;
-        const y1 = height - (node.floor + 1) * floorHeight;
-
-        node.connections.forEach(targetId => {
-          const targetNode = this.findNode(targetId);
-          if (targetNode) {
-            const x2 = ((targetNode.lane + 0.5) / 4) * width;
-            const y2 = height - (targetNode.floor + 1) * floorHeight;
-
-            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-            line.setAttribute('x1', x1);
-            line.setAttribute('y1', y1);
-            line.setAttribute('x2', x2);
-            line.setAttribute('y2', y2);
-            line.setAttribute('stroke', '#64748b');
-            line.setAttribute('stroke-width', '2');
-            line.setAttribute('stroke-dasharray', '4 4');
-            svgEl.appendChild(line);
-          }
-        });
-      });
-    }
-
-    // 2. Render Node Elements
-    for (let f = 0; f < this.totalFloors; f++) {
-      this.floors[f].forEach(node => {
-        const x = ((node.lane + 0.5) / 4) * width;
-        const y = height - (node.floor + 1) * floorHeight;
-
-        const el = document.createElement('div');
-        el.className = `map-node ${node.type}-node`;
-        if (reachableIds.has(node.id)) el.classList.add('reachable');
-        if (this.visitedNodes.has(node.id)) el.classList.add('visited');
-        if (node.type === 'boss') el.classList.add('boss-node');
-
-        el.style.left = `${x}px`;
-        el.style.top = `${y}px`;
-        el.innerHTML = node.icon;
-        el.title = `${node.name} (Floor ${node.floor + 1})`;
-
-        if (reachableIds.has(node.id)) {
-          el.addEventListener('click', () => {
-            this.currentNode = node.id;
-            this.visitedNodes.add(node.id);
-            window.soundEngine.playSFX('card_play');
-            onNodeSelect(node);
-          });
-        }
-
-        containerEl.appendChild(el);
-      });
     }
   }
 }
 
-window.SpireMap = SpireMap;
+window.WorldMap = WorldMap;
+window.TILE_GRASS = TILE_GRASS;
+window.TILE_DIRT_PATH = TILE_DIRT_PATH;
+window.TILE_SOIL_DRY = TILE_SOIL_DRY;
+window.TILE_SOIL_WATERED = TILE_SOIL_WATERED;
+window.TILE_WATER = TILE_WATER;
+window.TILE_HOUSE_DOOR = TILE_HOUSE_DOOR;
+window.TILE_SHIPPING_BIN = TILE_SHIPPING_BIN;
+window.TILE_WELL = TILE_WELL;
+window.TILE_COOP_DOOR = TILE_COOP_DOOR;
+window.TILE_BARN_DOOR = TILE_BARN_DOOR;
+window.TILE_HOTSPRING = TILE_HOTSPRING;
+window.TILE_MINE_ENTRANCE = TILE_MINE_ENTRANCE;
+window.TILE_TOWN_ROAD = TILE_TOWN_ROAD;
+window.TILE_ROCK = TILE_ROCK;
+window.TILE_BRANCH = TILE_BRANCH;
+window.TILE_WEED = TILE_WEED;

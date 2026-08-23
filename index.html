@@ -3,134 +3,170 @@
 <head>
   <meta charset="UTF-8">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-  <meta http-equiv="Pragma" content="no-cache">
-  <meta http-equiv="Expires" content="0">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>SUNNYVALE 3D DIORAMA | 초호화 3D 목장 시뮬레이션</title>
+  <title>HARVEST MOON: MINERAL MEADOW | 목장이야기 (하베스트문)</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Plus+Jakarta+Sans:wght@500;700;800&family=Noto+Sans+KR:wght@500;700;900&display=swap" rel="stylesheet">
-  
-  <!-- Three.js Core & Controls -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-
-  <link rel="stylesheet" href="style.css?v=3.0.0">
+  <link href="https://fonts.googleapis.com/css2?family=Gaegu:wght@700&family=Press+Start+2P&family=Noto+Sans+KR:wght@700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=4.0.0">
 </head>
 <body>
-  <div id="game-app">
-    <!-- 3D WebGL Canvas -->
-    <div id="webgl-container"></div>
+  <div id="game-viewport">
+    
+    <!-- Retro 2.5D RPG World Canvas -->
+    <canvas id="gameCanvas"></canvas>
 
-    <!-- Cinematic Vignette Overlay -->
-    <div id="cinematic-vignette"></div>
+    <!-- Weather & Night Overlay -->
+    <div id="weather-filter"></div>
 
-    <!-- ================= VISION-OS STYLE GLASS TOP HUD ================= -->
-    <header id="vision-top-hud">
-      <div class="glass-pill left-pill">
-        <div class="sun-orb" id="hud-time-orb">☀️</div>
-        <div class="time-details">
-          <span class="season-badge" id="hud-season">SPRING · DAY 1</span>
-          <span class="clock-badge" id="hud-clock">09:00 AM</span>
+    <!-- ================= TOP HUD: TIME, WEATHER, STAMINA, GOLD ================= -->
+    <div id="hm-top-hud">
+      <!-- Left: Calendar & Clock -->
+      <div class="hm-panel time-panel">
+        <div class="date-row">
+          <span class="weather-icon" id="hud-weather">☀️</span>
+          <span class="season-badge" id="hud-season">봄 (Spring)</span>
+          <span class="day-badge" id="hud-day">1일 (월)</span>
+        </div>
+        <div class="clock-row">
+          <span class="clock-icon">⏰</span>
+          <span id="hud-clock">AM 06:00</span>
         </div>
       </div>
 
-      <div class="glass-pill center-pill">
-        <div class="farm-title">SUNNYVALE 3D DIORAMA</div>
-      </div>
-
-      <div class="glass-pill right-pill">
-        <div class="gold-box">
-          <span class="gold-sparkle">🪙</span>
-          <span id="hud-gold-val">1,200 G</span>
+      <!-- Right: Gold & Stamina -->
+      <div class="hm-panel stats-panel">
+        <div class="gold-row">
+          <span class="coin-icon">💰</span>
+          <span id="hud-gold">500 G</span>
         </div>
-        <div class="energy-box">
-          <div class="energy-fill" id="hud-energy-bar" style="width: 100%;"></div>
-          <span class="energy-text" id="hud-energy-val">⚡ 100/100</span>
-        </div>
-      </div>
-    </header>
-
-    <!-- ================= 3D CAMERA CONTROLS GUIDE ================= -->
-    <div id="camera-hint">
-      <span>👆 드래그: 3D 회전 | 🤏 핀치/휠: 줌인·아웃 | 🎯 터치: 3D 작물 심기·수확</span>
-    </div>
-
-    <!-- ================= FLOATING GLASS ACTION BUTTONS ================= -->
-    <div id="vision-floating-dock">
-      <button id="btn-open-shop" class="glass-btn" title="상점">
-        <span class="g-icon">🛍️</span>
-        <span class="g-label">상점</span>
-      </button>
-      <button id="btn-open-bag" class="glass-btn" title="인벤토리">
-        <span class="g-icon">🎒</span>
-        <span class="g-label">배낭</span>
-      </button>
-      <button id="btn-toggle-time" class="glass-btn" title="낮/노을/밤 전환">
-        <span class="g-icon">🌅</span>
-        <span class="g-label">조명</span>
-      </button>
-      <button id="btn-sleep" class="glass-btn btn-highlight" title="하루 끝내기">
-        <span class="g-icon">🌙</span>
-        <span class="g-label">취침</span>
-      </button>
-    </div>
-
-    <!-- ================= BOTTOM TOUCH 3D TOOLBAR ================= -->
-    <footer id="vision-bottom-hotbar">
-      <div class="hotbar-glass-container" id="hotbar-dock">
-        <!-- 3D Tool slots -->
-      </div>
-    </footer>
-
-    <!-- ================= MODAL: LUXURY GLASS SHOP ================= -->
-    <div id="modal-shop" class="glass-modal hidden">
-      <div class="modal-backdrop"></div>
-      <div class="modal-card shop-card">
-        <div class="modal-header">
-          <div class="header-left">
-            <h2>PIERRE'S LUXURY BOTANICAL</h2>
-            <p>초호화 희귀 종자 및 3D 목장 조경 시설</p>
+        <div class="stamina-row">
+          <span class="stamina-label">체력</span>
+          <div class="stamina-bar-bg">
+            <div id="hud-stamina-fill" class="stamina-bar-fill" style="width: 100%;"></div>
           </div>
-          <button class="btn-close-modal" data-modal="modal-shop">✕</button>
-        </div>
-
-        <div class="shop-grid-scroll" id="shop-items-container">
-          <!-- Dynamically populated luxury shop items -->
+          <span id="hud-stamina-val">100</span>
         </div>
       </div>
     </div>
 
-    <!-- ================= MODAL: LUXURY GLASS INVENTORY ================= -->
-    <div id="modal-bag" class="glass-modal hidden">
-      <div class="modal-backdrop"></div>
-      <div class="modal-card bag-card">
+    <!-- ================= CURRENTLY HELD ITEM / TOOL POPUP ================= -->
+    <div id="held-item-hud" class="hm-panel">
+      <div class="held-icon" id="hud-tool-icon">🚜</div>
+      <div class="held-info">
+        <div class="held-name" id="hud-tool-name">호미 (Hoe)</div>
+        <div class="held-sub" id="hud-tool-sub">밭을 일굽니다 [B 버튼]</div>
+      </div>
+    </div>
+
+    <!-- ================= DIALOG & NPC CONVERSATION BOX ================= -->
+    <div id="dialog-box" class="dialog-hidden">
+      <div class="dialog-frame">
+        <div class="dialog-portrait" id="dialog-portrait">👨‍🌾</div>
+        <div class="dialog-content">
+          <div class="dialog-speaker" id="dialog-speaker">촌장 토마스 (Mayor Thomas)</div>
+          <div class="dialog-text" id="dialog-text">"자네가 새로 온 목장주인가? 미네랄 계곡에 온 것을 진심으로 환영하네! 호미로 밭을 갈고 씨앗을 심어보게나."</div>
+        </div>
+        <div class="dialog-next-arrow">▼</div>
+      </div>
+    </div>
+
+    <!-- ================= SHOP MODAL (PIERRE'S STORE) ================= -->
+    <div id="modal-shop" class="hm-modal hidden">
+      <div class="modal-card">
         <div class="modal-header">
-          <div class="header-left">
-            <h2>MY BACKPACK & HARVEST</h2>
-            <p>수확한 고품질 3D 농산물 및 자원</p>
-          </div>
-          <button class="btn-close-modal" data-modal="modal-bag">✕</button>
+          <h2>🏪 피에르 잡화점 (Pierre's General Store)</h2>
+          <button class="btn-close-hm" id="btn-close-shop">✕</button>
         </div>
-
-        <div class="bag-grid-scroll" id="bag-items-container">
-          <!-- 24 items slots -->
+        <div class="shop-tabs">
+          <button class="tab-btn active" data-tab="seeds">🌱 씨앗 (Seeds)</button>
+          <button class="tab-btn" data-tab="tools">🛠️ 도구 & 사료</button>
         </div>
+        <div class="shop-items-list" id="shop-items-container"></div>
+      </div>
+    </div>
 
-        <div class="bag-bottom-actions">
-          <span id="bag-selected-desc">아이템을 선택해 주세요.</span>
-          <button id="btn-ship-selected" class="btn-luxury-gold">출하 상자에 판매</button>
+    <!-- ================= RUCKSACK / INVENTORY MODAL ================= -->
+    <div id="modal-rucksack" class="hm-modal hidden">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h2>🎒 배낭 (Rucksack)</h2>
+          <button class="btn-close-hm" id="btn-close-rucksack">✕</button>
+        </div>
+        <div class="rucksack-grid" id="rucksack-container"></div>
+        <div class="rucksack-footer">
+          <span id="rucksack-item-desc">아이템을 선택하여 손에 들거나 출하하세요.</span>
+          <button id="btn-equip-item" class="btn-hm-action">손에 들기 (Equip)</button>
         </div>
       </div>
     </div>
 
-    <!-- Floating Toast Pill -->
-    <div id="toast-pill" class="toast-hidden">알림</div>
+    <!-- ================= DAILY 5:00 PM SHIPPING SETTLEMENT MODAL ================= -->
+    <div id="modal-shipping" class="hm-modal hidden">
+      <div class="modal-card shipping-card">
+        <div class="shipping-header">
+          <div class="zack-avatar">🤠</div>
+          <div>
+            <h2>📦 오후 5:00 잭의 출하 정산</h2>
+            <p>"오늘도 좋은 농산물을 많이 모았더군! 여기 대금일세."</p>
+          </div>
+        </div>
+        <div class="shipping-list" id="shipping-list-container"></div>
+        <div class="shipping-total-row">
+          <span>오늘의 총 출하액:</span>
+          <strong class="gold-text" id="shipping-total-gold">+0 G</strong>
+        </div>
+        <button id="btn-close-shipping" class="btn-hm-primary">정산 확인</button>
+      </div>
+    </div>
+
+    <!-- ================= MOBILE GAME BOY / NINTENDO TOUCH CONTROLLER ================= -->
+    <div id="mobile-gamepad">
+      <!-- D-Pad (Left Thumb) -->
+      <div id="dpad-container">
+        <button class="dpad-btn dpad-up" id="btn-dpad-up">▲</button>
+        <div class="dpad-mid-row">
+          <button class="dpad-btn dpad-left" id="btn-dpad-left">◀</button>
+          <div class="dpad-center"></div>
+          <button class="dpad-btn dpad-right" id="btn-dpad-right">▶</button>
+        </div>
+        <button class="dpad-btn dpad-down" id="btn-dpad-down">▼</button>
+      </div>
+
+      <!-- Action Buttons (Right Thumb) -->
+      <div id="actions-container">
+        <div class="action-btn-row">
+          <button class="btn-round btn-y" id="btn-act-y" title="도구 교체">
+            <span class="btn-sub">도구</span>
+            <strong>Y</strong>
+          </button>
+          <button class="btn-round btn-x" id="btn-act-x" title="배낭 열기">
+            <span class="btn-sub">배낭</span>
+            <strong>X</strong>
+          </button>
+        </div>
+        <div class="action-btn-row">
+          <button class="btn-round btn-b" id="btn-act-b" title="도구 사용">
+            <span class="btn-sub">도구사용</span>
+            <strong>B</strong>
+          </button>
+          <button class="btn-round btn-a" id="btn-act-a" title="대화 / 줍기 / 조사">
+            <span class="btn-sub">결정/줍기</span>
+            <strong>A</strong>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="hm-toast" class="toast-hidden">알림</div>
 
   </div>
 
-  <!-- Game Scripts with Cache-Buster -->
-  <script src="js/audio.js?v=3.0.0"></script>
-  <script src="js/three-app.js?v=3.0.0"></script>
+  <!-- Game Scripts -->
+  <script src="js/audio.js?v=4.0.0"></script>
+  <script src="js/sprites.js?v=4.0.0"></script>
+  <script src="js/map.js?v=4.0.0"></script>
+  <script src="js/game.js?v=4.0.0"></script>
 </body>
 </html>
