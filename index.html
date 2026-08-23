@@ -5,12 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>ABYSSAL SLAYER: 몰락자의 승천 (Ascent of the Fallen)</title>
+  <title>ABYSSAL SLAYER 3D: 몰락자의 승천 (PS3-Grade Dark Fantasy Roguelike RPG)</title>
   <link rel="stylesheet" href="style.css">
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Noto+Sans+KR:wght@400;700;900&display=swap" rel="stylesheet">
+  <!-- Three.js r128 CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
   <div id="game-container">
+    <!-- WebGL 3D Canvas -->
     <canvas id="gameCanvas"></canvas>
 
     <!-- Top HUD -->
@@ -68,7 +71,7 @@
     <!-- Boss Health Bar -->
     <div id="boss-hud" class="boss-hud-container hidden">
       <div class="boss-title-row">
-        <span id="boss-name" class="boss-name">공허의 대군주 - 아바돈</span>
+        <span id="boss-name" class="boss-name">공허의 대군주 - 아바돈 (3D Archon)</span>
         <span id="boss-phase-badge" class="boss-phase">PHASE 1</span>
       </div>
       <div class="boss-bar-track">
@@ -112,7 +115,7 @@
       </div>
     </div>
 
-    <!-- Mobile Virtual Gamepad (Floating Dynamic Joystick + Action Arc) -->
+    <!-- Mobile Virtual Gamepad (Floating Joystick + Action Arc) -->
     <div id="mobile-touch-controls">
       <div id="touch-joystick-toucharea">
         <div id="floating-joystick" class="hidden">
@@ -139,8 +142,8 @@
       <div class="modal-scroll-wrapper">
         <div class="title-content">
           <div class="title-glow"></div>
-          <h1 class="game-title">ABYSSAL SLAYER</h1>
-          <p class="game-subtitle">몰락자의 승천 • ASCENT OF THE FALLEN</p>
+          <h1 class="game-title">ABYSSAL SLAYER 3D</h1>
+          <p class="game-subtitle">몰락자의 승천 • PS3-GRADE DARK FANTASY</p>
 
           <div class="class-selection-container">
             <h2 class="section-title">영웅의 운명을 선택하십시오</h2>
@@ -151,16 +154,16 @@
                   <div class="class-card-icon">🗡️</div>
                   <div>
                     <h3 class="class-title">섀도우 블레이드</h3>
-                    <p class="class-role">민첩형 쾌속 암살자</p>
+                    <p class="class-role">민첩형 쾌속 암살자 (Dual Katanas)</p>
                   </div>
                 </div>
                 <div class="class-stats">
                   <div>공격속도 ★★★★★ | 치명타율 ★★★★☆</div>
                 </div>
                 <ul class="class-features">
-                  <li>• 3단 그림자 참격 & 3연 수리검 투척</li>
+                  <li>• 3단 쌍검 검기 참격 & 수리검 투척</li>
                   <li>• 그림자 분신 소환 & 잔상 무적 대시</li>
-                  <li>• 궁극기: [어비스 익스큐션] 시공 참격</li>
+                  <li>• 궁극기: [어비스 익스큐션] 시공 3D 참격</li>
                 </ul>
                 <button class="btn-select-hero">선택 완료</button>
               </div>
@@ -171,7 +174,7 @@
                   <div class="class-card-icon">🔮</div>
                   <div>
                     <h3 class="class-title">아케인 파이로</h3>
-                    <p class="class-role">광역 화염 마도사</p>
+                    <p class="class-role">광역 화염 마도사 (Arcane Orb)</p>
                   </div>
                 </div>
                 <div class="class-stats">
@@ -179,7 +182,7 @@
                 </div>
                 <ul class="class-features">
                   <li>• 광역 화염 작열탄 & 서리 노바 빙결</li>
-                  <li>• 궁극기: [메테오 스트라이크] 4연속 폭격</li>
+                  <li>• 궁극기: [메테오 스트라이크] 4연속 3D 운석 낙하</li>
                 </ul>
                 <button class="btn-select-hero">선택하기</button>
               </div>
@@ -190,7 +193,7 @@
                   <div class="class-card-icon">🪓</div>
                   <div>
                     <h3 class="class-title">블러드 버서커</h3>
-                    <p class="class-role">파괴형 흡혈 전사</p>
+                    <p class="class-role">파괴형 흡혈 전사 (Greatsword)</p>
                   </div>
                 </div>
                 <div class="class-stats">
@@ -206,7 +209,7 @@
           </div>
 
           <div class="title-action-bar">
-            <button id="btn-start-run" class="btn-abyss-primary glow-btn">심연 토벌 시작 (START)</button>
+            <button id="btn-start-run" class="btn-abyss-primary glow-btn">3D 심연 토벌 시작 (START)</button>
             <button id="btn-open-sanctuary" class="btn-abyss-secondary">안식처 강화 (SANCTUARY)</button>
           </div>
         </div>
@@ -296,12 +299,13 @@
     </div>
   </div>
 
-  <!-- Game Scripts -->
+  <!-- 3D Game Scripts -->
   <script src="js/audio.js"></script>
   <script src="js/data.js"></script>
-  <script src="js/particles.js"></script>
-  <script src="js/dungeon.js"></script>
-  <script src="js/entities.js"></script>
+  <script src="js/models3d.js"></script>
+  <script src="js/vfx3d.js"></script>
+  <script src="js/dungeon3d.js"></script>
+  <script src="js/entities3d.js"></script>
   <script src="js/game.js"></script>
 </body>
 </html>

@@ -1,14 +1,54 @@
 /* ==========================================================================
-   ABYSSAL SLAYER: MASTER GAME ENGINE (MOBILE-ENHANCED & AUTO-AIM)
+   ABYSSAL SLAYER 3D: MASTER THREE.JS ENGINE (PS3 DARK FANTASY)
+   WebGL Renderer, Isometric Camera, Dynamic Lighting, Physics & Input
    ========================================================================== */
 
-class AbyssalGameEngine {
+class AbyssalMaster3D {
   constructor() {
     this.canvas = document.getElementById('gameCanvas');
-    this.ctx = this.canvas.getContext('2d');
     this.minimapCanvas = document.getElementById('minimapCanvas');
 
-    this.state = 'TITLE'; // TITLE, SANCTUARY, PLAYING, BOON_PICK, SHOP, END
+    // 1. Three.js Core Setup
+    this.scene = new THREE.Scene();
+    this.scene.background = new THREE.Color(0x07090e);
+    this.scene.fog = new THREE.FogExp2(0x07090e, 0.025);
+
+    this.camera = new THREE.PerspectiveCamera(48, window.innerWidth / window.innerHeight, 0.1, 100);
+    this.cameraOffset = new THREE.Vector3(0, 22, 16);
+    this.cameraTarget = new THREE.Vector3(0, 0, 0);
+
+    this.renderer = new THREE.WebGLRenderer({
+      canvas: this.canvas,
+      antialias: true,
+      powerPreference: 'high-performance'
+    });
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+    // 2D Canvas for Damage Overlay
+    this.textCanvas = document.createElement('canvas');
+    this.textCanvas.style.position = 'absolute';
+    this.textCanvas.style.top = '0';
+    this.textCanvas.style.left = '0';
+    this.textCanvas.style.width = '100%';
+    this.textCanvas.style.height = '100%';
+    this.textCanvas.style.pointerEvents = 'none';
+    this.textCanvas.style.zIndex = '15';
+    document.getElementById('game-container').appendChild(this.textCanvas);
+    this.textCtx = this.textCanvas.getContext('2d');
+
+    // Raycaster for Mouse Aim
+    this.raycaster = new THREE.Raycaster();
+    this.mouse = new THREE.Vector2();
+    this.groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+
+    // Game Systems
+    this.vfx = new VFX3DEngine(this.scene);
+    window.vfx3d = this.vfx;
+
+    this.state = 'TITLE';
     this.selectedClass = 'shadow_blade';
     this.talents = {};
     this.bankedSouls = 0;
@@ -17,14 +57,11 @@ class AbyssalGameEngine {
     this.player = null;
     this.enemies = [];
     this.projectiles = [];
-    this.camera = { x: 0, y: 0 };
-    this.mouse = { x: 0, y: 0, isDown: false };
     this.keys = {};
-
     this.rerollCount = 1;
     this.runStartTime = 0;
 
-    // Mobile Dynamic Floating Joystick State
+    // Mobile Dynamic Floating Joystick
     this.touchJoystick = {
       active: false,
       identifier: null,
@@ -34,32 +71,45 @@ class AbyssalGameEngine {
       dy: 0
     };
 
+    this.setupLighting();
     this.loadSave();
-    this.initCanvas();
     this.setupInputs();
     this.setupUI();
+    this.onResize();
+    window.addEventListener('resize', () => this.onResize());
 
     window.gameInstance = this;
     this.startLoop();
   }
 
-  initCanvas() {
-    this.resize();
-    window.addEventListener('resize', () => this.resize());
-    if (window.visualViewport) {
-      window.visualViewport.addEventListener('resize', () => this.resize());
-    }
+  setupLighting() {
+    // Ambient Moonlight
+    const ambient = new THREE.AmbientLight(0x1e1b4b, 1.2);
+    this.scene.add(ambient);
+
+    // Directional Sunlight / Moonlight with Shadow
+    this.dirLight = new THREE.DirectionalLight(0x93c5fd, 2.2);
+    this.dirLight.position.set(12, 24, 10);
+    this.dirLight.castShadow = true;
+    this.dirLight.shadow.mapSize.width = 1024;
+    this.dirLight.shadow.mapSize.height = 1024;
+    this.dirLight.shadow.camera.near = 0.5;
+    this.dirLight.shadow.camera.far = 60;
+    this.dirLight.shadow.camera.left = -25;
+    this.dirLight.shadow.camera.right = 25;
+    this.dirLight.shadow.camera.top = 25;
+    this.dirLight.shadow.camera.bottom = -25;
+    this.scene.add(this.dirLight);
   }
 
-  resize() {
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  onResize() {
     const w = window.innerWidth;
     const h = window.innerHeight;
-    this.canvas.width = w * dpr;
-    this.canvas.height = h * dpr;
-    this.ctx.scale(dpr, dpr);
-    this.viewportWidth = w;
-    this.viewportHeight = h;
+    this.camera.aspect = w / h;
+    this.camera.updateProjectionMatrix();
+    this.renderer.setSize(w, h);
+    this.textCanvas.width = w;
+    this.textCanvas.height = h;
   }
 
   loadSave() {
@@ -86,10 +136,10 @@ class AbyssalGameEngine {
   autoAimNearestEnemy() {
     if (!this.player || this.enemies.length === 0) return;
     let closest = null;
-    let minDist = 600;
+    let minDist = 18;
     this.enemies.forEach(e => {
       if (e.hp > 0) {
-        const dist = Math.hypot(e.x - this.player.x, e.y - this.player.y);
+        const dist = Math.hypot(e.x - this.player.x, e.z - this.player.z);
         if (dist < minDist) {
           minDist = dist;
           closest = e;
@@ -98,7 +148,7 @@ class AbyssalGameEngine {
     });
 
     if (closest) {
-      this.player.aimAngle = Math.atan2(closest.y - this.player.y, closest.x - this.player.x);
+      this.player.aimAngle = Math.atan2(closest.z - this.player.z, closest.x - this.player.x);
     }
   }
 
@@ -107,12 +157,12 @@ class AbyssalGameEngine {
       this.keys[e.code] = true;
       if (this.state === 'PLAYING') {
         if (e.code === 'Space' || e.code === 'KeyX') {
-          let mx = 0, my = 0;
-          if (this.keys['KeyW'] || this.keys['ArrowUp']) my -= 1;
-          if (this.keys['KeyS'] || this.keys['ArrowDown']) my += 1;
+          let mx = 0, mz = 0;
+          if (this.keys['KeyW'] || this.keys['ArrowUp']) mz -= 1;
+          if (this.keys['KeyS'] || this.keys['ArrowDown']) mz += 1;
           if (this.keys['KeyA'] || this.keys['ArrowLeft']) mx -= 1;
           if (this.keys['KeyD'] || this.keys['ArrowRight']) mx += 1;
-          this.player.dash(mx, my);
+          this.player.dash(mx, mz);
         }
         if (e.code === 'KeyQ' || e.code === 'KeyC') this.player.castSkill1(this.projectiles);
         if (e.code === 'KeyE' || e.code === 'KeyV') this.player.castSkill2(this.projectiles);
@@ -125,26 +175,23 @@ class AbyssalGameEngine {
     });
 
     window.addEventListener('mousemove', (e) => {
-      this.mouse.x = e.clientX;
-      this.mouse.y = e.clientY;
-      if (this.player && !this.touchJoystick.active) {
-        const screenPx = this.player.x - this.camera.x;
-        const screenPy = this.player.y - this.camera.y;
-        this.player.aimAngle = Math.atan2(this.mouse.y - screenPy, this.mouse.x - screenPx);
-      }
-    });
+      this.mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+      this.mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
 
-    window.addEventListener('mousedown', (e) => {
-      if (e.button === 0) {
-        this.mouse.isDown = true;
-        if (this.state === 'PLAYING' && this.player) {
-          this.player.basicAttack(this.enemies);
+      if (this.player && !this.touchJoystick.active) {
+        this.raycaster.setFromCamera(this.mouse, this.camera);
+        const hitPoint = new THREE.Vector3();
+        this.raycaster.ray.intersectPlane(this.groundPlane, hitPoint);
+        if (hitPoint) {
+          this.player.aimAngle = Math.atan2(hitPoint.z - this.player.z, hitPoint.x - this.player.x);
         }
       }
     });
 
-    window.addEventListener('mouseup', () => {
-      this.mouse.isDown = false;
+    window.addEventListener('mousedown', (e) => {
+      if (e.button === 0 && this.state === 'PLAYING' && this.player) {
+        this.player.basicAttack(this.enemies);
+      }
     });
 
     // Mobile Dynamic Floating Joystick
@@ -199,7 +246,7 @@ class AbyssalGameEngine {
       touchArea.addEventListener('touchcancel', endJoy);
     }
 
-    // Touch Action Buttons with Auto-Aim
+    // Touch Actions with Auto-Aim
     const bindTouchAction = (id, action) => {
       const btn = document.getElementById(id);
       if (btn) {
@@ -240,7 +287,6 @@ class AbyssalGameEngine {
   }
 
   setupUI() {
-    // Class Card Selection
     document.querySelectorAll('.class-card').forEach(card => {
       card.addEventListener('click', () => {
         document.querySelectorAll('.class-card').forEach(c => {
@@ -254,15 +300,8 @@ class AbyssalGameEngine {
       });
     });
 
-    // Start Run Button
-    document.getElementById('btn-start-run').addEventListener('click', () => {
-      this.startRun();
-    });
-
-    // Sanctuary Open/Close
-    document.getElementById('btn-open-sanctuary').addEventListener('click', () => {
-      this.openSanctuary();
-    });
+    document.getElementById('btn-start-run').addEventListener('click', () => this.startRun());
+    document.getElementById('btn-open-sanctuary').addEventListener('click', () => this.openSanctuary());
     document.getElementById('btn-close-sanctuary').addEventListener('click', () => {
       document.getElementById('modal-sanctuary').classList.add('hidden');
     });
@@ -270,7 +309,6 @@ class AbyssalGameEngine {
       document.getElementById('modal-sanctuary').classList.add('hidden');
     });
 
-    // Reroll Boon
     document.getElementById('btn-reroll-boon').addEventListener('click', () => {
       if (this.rerollCount > 0) {
         this.rerollCount--;
@@ -279,7 +317,6 @@ class AbyssalGameEngine {
       }
     });
 
-    // Return to Hub from End Screen
     document.getElementById('btn-return-hub').addEventListener('click', () => {
       document.getElementById('modal-end').classList.add('hidden');
       document.getElementById('modal-title').classList.remove('hidden');
@@ -288,7 +325,6 @@ class AbyssalGameEngine {
       window.abyssAudio.stopBGM();
     });
 
-    // Close Shop
     document.getElementById('btn-close-shop').addEventListener('click', () => {
       document.getElementById('modal-shop').classList.add('hidden');
       this.state = 'PLAYING';
@@ -296,11 +332,15 @@ class AbyssalGameEngine {
   }
 
   startRun() {
-    const classData = HERO_CLASSES[this.selectedClass];
-    this.player = new Player(classData, this.talents);
-    this.dungeon = new DungeonFloor(1);
+    if (this.player) this.player.destroy();
+    this.enemies.forEach(e => e.destroy());
+    this.projectiles.forEach(p => p.destroy());
     this.enemies = [];
     this.projectiles = [];
+
+    const classData = HERO_CLASSES[this.selectedClass];
+    this.player = new Player3D(this.scene, classData, this.talents);
+    this.dungeon = new DungeonFloor3D(this.scene, 1);
     this.runStartTime = Date.now();
     this.rerollCount = 1;
 
@@ -310,7 +350,7 @@ class AbyssalGameEngine {
 
     this.state = 'PLAYING';
     window.abyssAudio.startDungeonBGM();
-    this.showToast(`🔥 ${this.player.name}의 심연 토벌이 시작되었습니다!`);
+    this.showToast(`🔥 ${this.player.name}의 3D 심연 토벌이 시작되었습니다!`);
     this.updateHUD();
   }
 
@@ -342,7 +382,7 @@ class AbyssalGameEngine {
           <div style="font-weight:900; font-size:14px; color:#fff;">${t.icon} ${t.name} (Lv.${curLvl}/${t.maxLevel})</div>
           <div style="font-size:11px; color:#94a3b8;">${t.desc}</div>
         </div>
-        <button class="btn-upgrade-talent" style="padding:6px 12px; background:${isMax ? '#475569' : '#e11d48'}; border:none; border-radius:6px; color:#fff; font-weight:800; font-size:12px; cursor:${isMax ? 'default' : 'pointer'};">
+        <button style="padding:6px 12px; background:${isMax ? '#475569' : '#e11d48'}; border:none; border-radius:6px; color:#fff; font-weight:800; font-size:12px; cursor:${isMax ? 'default' : 'pointer'};">
           ${isMax ? 'MAX' : `${cost} 💜 강화`}
         </button>
       `;
@@ -466,31 +506,32 @@ class AbyssalGameEngine {
   spawnEnemiesForRoom(room) {
     if (room.enemiesSpawned || room.cleared) return;
     room.enemiesSpawned = true;
+    this.enemies.forEach(e => e.destroy());
     this.enemies = [];
 
     if (room.type === 'combat') {
       for (let i = 0; i < 5; i++) {
-        this.enemies.push(new Enemy('void_skulker', Math.random() * 800 + 200, Math.random() * 500 + 150));
+        this.enemies.push(new Enemy3D(this.scene, 'void_skulker', (Math.random() - 0.5) * 22, (Math.random() - 0.5) * 16));
       }
       for (let i = 0; i < 2; i++) {
-        this.enemies.push(new Enemy('skeleton_archer', Math.random() * 800 + 200, Math.random() * 500 + 150));
+        this.enemies.push(new Enemy3D(this.scene, 'skeleton_archer', (Math.random() - 0.5) * 22, (Math.random() - 0.5) * 16));
       }
     } else if (room.type === 'elite') {
-      this.enemies.push(new Enemy('minotaur_elite', room.width / 2, room.height / 2));
+      this.enemies.push(new Enemy3D(this.scene, 'minotaur_elite', 0, 0));
       for (let i = 0; i < 3; i++) {
-        this.enemies.push(new Enemy('void_skulker', Math.random() * 800 + 200, Math.random() * 500 + 150));
+        this.enemies.push(new Enemy3D(this.scene, 'void_skulker', (Math.random() - 0.5) * 22, (Math.random() - 0.5) * 16));
       }
     } else if (room.type === 'boss') {
-      const boss = new AbaddonBoss(room.width / 2, room.height / 2);
+      const boss = new AbaddonBoss3D(this.scene, 0, 0);
       this.enemies.push(boss);
       document.getElementById('boss-hud').classList.remove('hidden');
       window.abyssAudio.startBossBGM();
     }
   }
 
-  dealAreaDamage(x, y, radius, damage, type) {
+  dealAreaDamage3D(x, z, radius, damage, type) {
     this.enemies.forEach(e => {
-      const dist = Math.hypot(e.x - x, e.y - y);
+      const dist = Math.hypot(e.x - x, e.z - z);
       if (dist < radius + e.radius) {
         const isCrit = Math.random() < this.player.critRate;
         e.takeDamage(damage * (isCrit ? this.player.critMult : 1.0), isCrit, this.player);
@@ -498,19 +539,19 @@ class AbyssalGameEngine {
     });
   }
 
-  triggerChainLightning(source, enemies, chainsLeft, damage) {
+  triggerChainLightning3D(source, enemies, chainsLeft, damage) {
     if (chainsLeft <= 0) return;
     const candidates = enemies.filter(e => e !== source && e.hp > 0);
     if (candidates.length === 0) return;
 
-    candidates.sort((a, b) => Math.hypot(a.x - source.x, a.y - source.y) - Math.hypot(b.x - source.x, b.y - source.y));
+    candidates.sort((a, b) => Math.hypot(a.x - source.x, a.z - source.z) - Math.hypot(b.x - source.x, b.z - source.z));
     const target = candidates[0];
 
-    window.abyssParticles.addLightning(source.x, source.y, target.x, target.y);
+    window.vfx3d.addLightning(source.x, source.z, target.x, target.z);
     target.takeDamage(damage, false, this.player);
 
     setTimeout(() => {
-      this.triggerChainLightning(target, enemies, chainsLeft - 1, damage);
+      this.triggerChainLightning3D(target, enemies, chainsLeft - 1, damage);
     }, 80);
   }
 
@@ -555,16 +596,19 @@ class AbyssalGameEngine {
     if (!this.dungeon.currentRoom.cleared) return;
     const p = this.player;
     const room = this.dungeon.currentRoom;
+    const halfW = room.width / 2;
+    const halfH = room.height / 2;
 
-    if (p.y < 35 && room.doors.includes('north')) this.enterNextRoom('north');
-    else if (p.y > room.height - 35 && room.doors.includes('south')) this.enterNextRoom('south');
-    else if (p.x < 35 && room.doors.includes('west')) this.enterNextRoom('west');
-    else if (p.x > room.width - 35 && room.doors.includes('east')) this.enterNextRoom('east');
+    if (p.z < -halfH + 1.2 && room.doors.includes('north')) this.enterNextRoom('north');
+    else if (p.z > halfH - 1.2 && room.doors.includes('south')) this.enterNextRoom('south');
+    else if (p.x < -halfW + 1.2 && room.doors.includes('west')) this.enterNextRoom('west');
+    else if (p.x > halfW - 1.2 && room.doors.includes('east')) this.enterNextRoom('east');
   }
 
   enterNextRoom(dir) {
     const next = this.dungeon.changeRoom(dir, this.player);
     if (next) {
+      this.projectiles.forEach(p => p.destroy());
       this.projectiles = [];
       this.spawnEnemiesForRoom(next);
       this.showToast(`📍 ${next.name} 진입`);
@@ -614,61 +658,67 @@ class AbyssalGameEngine {
     if (this.state !== 'PLAYING') return;
 
     let moveX = this.touchJoystick.dx;
-    let moveY = this.touchJoystick.dy;
+    let moveZ = this.touchJoystick.dy;
 
-    if (this.keys['KeyW'] || this.keys['ArrowUp']) moveY -= 1;
-    if (this.keys['KeyS'] || this.keys['ArrowDown']) moveY += 1;
+    if (this.keys['KeyW'] || this.keys['ArrowUp']) moveZ -= 1;
+    if (this.keys['KeyS'] || this.keys['ArrowDown']) moveZ += 1;
     if (this.keys['KeyA'] || this.keys['ArrowLeft']) moveX -= 1;
     if (this.keys['KeyD'] || this.keys['ArrowRight']) moveX += 1;
 
-    this.player.update(dt, moveX, moveY, this.dungeon.currentRoom);
+    this.player.update(dt, moveX, moveZ, this.dungeon.currentRoom);
     this.checkDoorWarps();
-
     this.spawnEnemiesForRoom(this.dungeon.currentRoom);
 
+    // Update Enemies
     for (let i = this.enemies.length - 1; i >= 0; i--) {
       const e = this.enemies[i];
       e.update(dt, this.player, this.projectiles);
       if (e.hp <= 0) {
         if (e.isBoss) this.endRun(true);
+        e.destroy();
         this.enemies.splice(i, 1);
       }
     }
 
+    // Update Projectiles
     for (let i = this.projectiles.length - 1; i >= 0; i--) {
       const p = this.projectiles[i];
       p.update(dt);
 
       if (p.life <= 0) {
+        p.destroy();
         this.projectiles.splice(i, 1);
         continue;
       }
 
       if (p.owner === 'player') {
         this.enemies.forEach(e => {
-          if (Math.hypot(e.x - p.x, e.y - p.y) < e.radius + p.radius) {
+          if (Math.hypot(e.x - p.x, e.z - p.z) < e.radius + p.radius) {
             e.takeDamage(p.damage, false, this.player);
             if (p.explodes) {
-              window.abyssParticles.addShockwave(p.x, p.y, 80, '#f97316');
-              this.dealAreaDamage(p.x, p.y, 80, p.damage, 'fire');
+              window.vfx3d.addShockwave(p.x, p.z, 3.5, 0xf97316);
+              this.dealAreaDamage3D(p.x, p.z, 3.5, p.damage, 'fire');
             }
-            if (!p.penetrates) p.life = 0;
+            if (!p.penetrates) {
+              p.life = 0;
+            }
           }
         });
       } else if (p.owner === 'enemy') {
-        if (Math.hypot(this.player.x - p.x, this.player.y - p.y) < this.player.radius + p.radius) {
+        if (Math.hypot(this.player.x - p.x, this.player.z - p.z) < this.player.radius + p.radius) {
           this.player.takeDamage(p.damage, 'projectile');
           p.life = 0;
         }
       }
     }
 
+    // Dungeon & VFX
     const res = this.dungeon.update(dt, this.player, this.enemies);
     if (res === 'ROOM_CLEARED') {
       this.presentBoons();
     }
 
-    window.abyssParticles.update(dt);
+    this.vfx.update(dt);
 
     if (this.player.hp <= 0) {
       this.endRun(false);
@@ -676,36 +726,41 @@ class AbyssalGameEngine {
 
     this.updateHUD();
 
-    const targetCamX = this.player.x - (this.viewportWidth || this.canvas.width) / 2;
-    const targetCamY = this.player.y - (this.viewportHeight || this.canvas.height) / 2;
-    this.camera.x += (targetCamX - this.camera.x) * 0.12;
-    this.camera.y += (targetCamY - this.camera.y) * 0.12;
+    // Camera 3D Isometric Tracking
+    this.cameraTarget.set(this.player.x, 1.0, this.player.z);
+    this.camera.position.x = this.player.x + this.cameraOffset.x;
+    this.camera.position.y = this.cameraOffset.y;
+    this.camera.position.z = this.player.z + this.cameraOffset.z;
 
-    if (window.abyssParticles.screenShake > 0) {
-      this.camera.x += (Math.random() - 0.5) * window.abyssParticles.screenShake;
-      this.camera.y += (Math.random() - 0.5) * window.abyssParticles.screenShake;
+    if (this.vfx.screenShake > 0) {
+      this.camera.position.x += (Math.random() - 0.5) * this.vfx.screenShake;
+      this.camera.position.z += (Math.random() - 0.5) * this.vfx.screenShake;
+    }
+
+    this.camera.lookAt(this.cameraTarget);
+
+    // Directional light tracks player
+    if (this.dirLight) {
+      this.dirLight.position.set(this.player.x + 12, 24, this.player.z + 10);
+      this.dirLight.target.position.set(this.player.x, 0, this.player.z);
+      this.dirLight.target.updateMatrixWorld();
     }
   }
 
   render() {
-    const { ctx, canvas, camera, dungeon, player, enemies, projectiles } = this;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    this.renderer.render(this.scene, this.camera);
 
-    if (this.state === 'PLAYING' || this.state === 'BOON_PICK' || this.state === 'SHOP') {
-      dungeon.render(ctx, camera);
-      window.abyssParticles.render(ctx, camera);
+    // 2D Text Overlay
+    this.textCtx.clearRect(0, 0, this.textCanvas.width, this.textCanvas.height);
+    this.vfx.render2DOverlay(this.textCtx, this.camera, this.textCanvas.width, this.textCanvas.height);
 
-      enemies.forEach(e => e.render(ctx, camera));
-      projectiles.forEach(p => p.render(ctx, camera));
-      player.render(ctx, camera);
-
-      if (this.minimapCanvas && window.innerWidth > 640) {
-        dungeon.renderMinimap(this.minimapCanvas);
-      }
+    // Minimap
+    if (this.minimapCanvas && window.innerWidth > 640 && this.dungeon) {
+      this.dungeon.renderMinimap(this.minimapCanvas);
     }
   }
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-  new AbyssalGameEngine();
+  new AbyssalMaster3D();
 });
