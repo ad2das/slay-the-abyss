@@ -3,365 +3,330 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>SLAY THE ABYSS | 심연의 탑 (Deckbuilder Roguelike)</title>
+  <title>BALATRO WEB | 발라트로: 포커 로그라이크</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&family=Marcellus&family=Noto+Sans+KR:wght@400;600;700;900&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&family=Rajdhani:wght@600;700;900&family=Noto+Sans+KR:wght@600;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div id="game-app">
-    <!-- Top Global Header Bar (Visible during gameplay) -->
-    <header id="top-bar" class="hidden">
-      <div class="top-left">
-        <div class="player-info-badge">
-          <span class="hero-icon">🛡️</span>
-          <span id="header-hero-name">아이언클래드 (Ironclad)</span>
-        </div>
-        <div class="hp-badge">
-          <span class="heart-icon">❤️</span>
-          <span id="header-hp-text">80 / 80</span>
-          <div class="hp-mini-bar-bg">
-            <div id="header-hp-mini-fill" class="hp-mini-bar-fill" style="width: 100%;"></div>
+    <!-- Hypnotic Psychedelic Swirling Shader Canvas -->
+    <canvas id="bgCanvas"></canvas>
+    
+    <!-- CRT Barrel Distortion & Scanline Filter -->
+    <div id="crt-vignette"></div>
+    <div id="crt-scanlines"></div>
+
+    <!-- Main Game Frame -->
+    <div id="balatro-frame">
+
+      <!-- ================= TOP: JOKERS & CONSUMABLES DOCK ================= -->
+      <div id="top-dock">
+        <!-- Joker Slots (Max 5) -->
+        <div class="slots-container" id="jokers-dock-container">
+          <div class="dock-header-label">
+            <span class="label-title">JOKERS</span>
+            <span class="label-count" id="joker-count-text">0/5</span>
+          </div>
+          <div class="dock-slots-row" id="jokers-row">
+            <!-- Dynamically populated Joker cards -->
           </div>
         </div>
-        <div class="gold-badge">
-          <span class="gold-icon">🪙</span>
-          <span id="header-gold-text">99</span>
+
+        <!-- Consumable Slots (Tarots/Planets, Max 2) -->
+        <div class="slots-container" id="consumables-dock-container">
+          <div class="dock-header-label">
+            <span class="label-title">CONSUMABLES</span>
+            <span class="label-count" id="consumable-count-text">0/2</span>
+          </div>
+          <div class="dock-slots-row" id="consumables-row">
+            <!-- Dynamically populated Tarot / Planet cards -->
+          </div>
         </div>
       </div>
 
-      <div class="top-center">
-        <div class="act-floor-badge" id="header-floor-text">ACT 1 - FLOOR 1</div>
-      </div>
-
-      <div class="top-right">
-        <!-- Relics Dock -->
-        <div class="relics-dock" id="header-relics-dock">
-          <!-- Dynamically populated relic icons -->
-        </div>
-
-        <!-- Potions Dock -->
-        <div class="potions-dock" id="header-potions-dock">
-          <div class="potion-slot" data-slot="0"><div class="potion-icon">🧪</div></div>
-          <div class="potion-slot" data-slot="1"><div class="potion-icon">🧪</div></div>
-          <div class="potion-slot" data-slot="2"><div class="potion-empty">Empty</div></div>
-        </div>
-
-        <!-- Deck View Button -->
-        <button id="btn-view-deck" class="deck-btn" title="덱 보기 (D)">
-          <span>🃏</span>
-          <span id="header-deck-count">10</span>
-        </button>
-
-        <!-- Map Toggle Button -->
-        <button id="btn-toggle-map" class="map-btn" title="지도 보기 (M)">
-          <span>🗺️ 지도</span>
-        </button>
-      </div>
-    </header>
-
-    <!-- Targeting & Combat FX Canvas (Always overlaid on combat) -->
-    <canvas id="fxCanvas"></canvas>
-
-    <!-- Main Screens Container -->
-    <main id="screen-container">
-
-      <!-- ================= SCREEN 1: TITLE SCREEN ================= -->
-      <section id="screen-title" class="game-screen active">
-        <div class="title-bg-particles"></div>
-        <div class="title-content">
-          <div class="title-logo-box">
-            <span class="title-tag">PREMIUM DECKBUILDING ROGUELIKE</span>
-            <h1 class="game-title">SLAY THE ABYSS</h1>
-            <h2 class="game-subtitle">심연의 탑: 첨탑의 정복자</h2>
-            <div class="title-ornament">◆ ❖ ◆</div>
-          </div>
-
-          <div class="title-menu">
-            <button id="btn-new-game" class="btn-sts-primary">
-              <span class="btn-text">새로운 등반 시작 (NEW RUN)</span>
-              <div class="btn-shimmer"></div>
-            </button>
-            <button id="btn-card-library" class="btn-sts-secondary">
-              <span class="btn-text">카드 & 유물 도감 (LIBRARY)</span>
-            </button>
-            <div class="game-version">v1.0.0 Commercial Edition | HTML5 Canvas & Web Audio</div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ================= SCREEN 2: SPIRE MAP SCREEN ================= -->
-      <section id="screen-map" class="game-screen hidden">
-        <div class="map-header">
-          <h2>THE SPIRE - ACT 1: EXORDIUM</h2>
-          <p>경로를 선택하여 첨탑의 정상으로 진출하십시오.</p>
-        </div>
-        <div class="map-scroll-viewport" id="map-scroll-viewport">
-          <div class="map-tree-canvas-container" id="map-tree-container">
-            <svg id="map-svg-lines"></svg>
-            <div id="map-nodes-layer"></div>
-          </div>
-        </div>
-        <div class="map-legend">
-          <span>⚔️ 몬스터</span>
-          <span>💀 엘리트</span>
-          <span>❓ 미지의 방</span>
-          <span>⛺ 휴식처</span>
-          <span>💰 상인</span>
-          <span>👹 보스</span>
-        </div>
-      </section>
-
-      <!-- ================= SCREEN 3: COMBAT ARENA SCREEN ================= -->
-      <section id="screen-combat" class="game-screen hidden">
-        <!-- Battle Arena Background -->
-        <div class="combat-background"></div>
-
-        <!-- Upper Arena (Characters & Enemies) -->
-        <div class="arena-stage">
-          <!-- Player Character Side -->
-          <div class="hero-stage-container" id="player-unit">
-            <div class="unit-status-bar" id="player-status-bar">
-              <!-- Buff/Debuff icons -->
+      <!-- ================= CENTER: MAIN STAGE ================= -->
+      <div id="main-stage">
+        
+        <!-- LEFT SIDEBAR: RUN STATS & BLIND GOAL -->
+        <div id="left-sidebar">
+          <!-- Blind Target Card -->
+          <div class="sidebar-box blind-goal-box" id="blind-info-box">
+            <div class="blind-type-tag" id="sb-blind-name">SMALL BLIND</div>
+            <div class="blind-score-target">
+              <span class="target-label">SCORE AT LEAST</span>
+              <div class="target-value-text" id="sb-target-score">300</div>
             </div>
-            <div class="unit-sprite-box hero-sprite-box">
-              <div class="character-visual hero-visual">
-                <div class="hero-glow"></div>
-                <div class="hero-body">🛡️</div>
-              </div>
-              <div class="unit-block-badge hidden" id="player-block-badge">
-                <span class="shield-icon">🛡️</span>
-                <span id="player-block-text">12</span>
+            <div class="blind-reward-tag">
+              <span>REWARD:</span>
+              <span class="money-text" id="sb-blind-reward">$3</span>
+            </div>
+            <div class="boss-debuff-text hidden" id="sb-boss-debuff"></div>
+          </div>
+
+          <!-- Current Round Accumulated Score -->
+          <div class="sidebar-box round-score-box">
+            <span class="score-box-label">ROUND SCORE</span>
+            <div class="round-score-num" id="sb-current-score">0</div>
+            <!-- Flame meter progress bar -->
+            <div class="score-progress-bar">
+              <div class="score-progress-fill" id="sb-score-fill" style="width: 0%;"></div>
+            </div>
+          </div>
+
+          <!-- Ante & Round Status -->
+          <div class="sidebar-box run-info-box">
+            <div class="info-row">
+              <span>ANTE</span>
+              <strong id="sb-ante-text">1 / 8</strong>
+            </div>
+            <div class="info-row">
+              <span>ROUND</span>
+              <strong id="sb-round-text">1</strong>
+            </div>
+            <div class="info-row highlight-money">
+              <span>MONEY</span>
+              <strong id="sb-money-text">$4</strong>
+            </div>
+          </div>
+
+          <!-- Hands & Discards Counters -->
+          <div class="counters-row">
+            <div class="counter-badge badge-hands">
+              <span class="cnt-label">HANDS</span>
+              <span class="cnt-val" id="sb-hands-count">4</span>
+            </div>
+            <div class="counter-badge badge-discards">
+              <span class="cnt-label">DISCARDS</span>
+              <span class="cnt-val" id="sb-discards-count">3</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT AREA: PLAYED CARDS, SCORING TALLY, AND HAND -->
+        <div id="play-area">
+
+          <!-- Upper Play Arena: Scoring Tally Banner & Played Cards -->
+          <div id="scoring-arena">
+            
+            <!-- Real-time Multiplier Calculator Display (Chips × Mult = Total) -->
+            <div id="scoring-calculator" class="hidden">
+              <div class="hand-name-banner" id="calc-hand-name">FLUSH</div>
+              <div class="calc-formula-row">
+                <div class="calc-chips-box">
+                  <span class="calc-label">CHIPS</span>
+                  <span class="calc-num" id="calc-chips-val">35</span>
+                </div>
+                <div class="calc-operator">✕</div>
+                <div class="calc-mult-box">
+                  <span class="calc-label">MULT</span>
+                  <span class="calc-num" id="calc-mult-val">4</span>
+                </div>
+                <div class="calc-equal">=</div>
+                <div class="calc-total-box" id="calc-total-val">140</div>
               </div>
             </div>
-            <div class="unit-hp-box">
-              <div class="hp-bar-outer">
-                <div class="hp-ghost-fill" id="player-hp-ghost"></div>
-                <div class="hp-main-fill" id="player-hp-fill"></div>
-                <div class="hp-bar-label"><span id="player-hp-curr">80</span> / <span id="player-hp-max">80</span></div>
+
+            <!-- Played Cards Drop Zone -->
+            <div id="played-cards-holder">
+              <!-- Dynamically moved played cards during scoring sequence -->
+            </div>
+          </div>
+
+          <!-- Bottom Hand Deck & Controls -->
+          <div id="player-hand-wrapper">
+            <!-- Sort & Hand Level Helper Bar -->
+            <div class="hand-helper-bar">
+              <div class="detected-hand-name" id="detected-hand-label">HIGH CARD (Lv.1)</div>
+              <div class="sort-buttons-group">
+                <button id="btn-sort-rank" class="btn-sort">SORT RANK</button>
+                <button id="btn-sort-suit" class="btn-sort">SORT SUIT</button>
+                <button id="btn-view-deck" class="btn-sort">DECK (<span id="deck-remain-count">52</span>)</button>
               </div>
             </div>
-          </div>
 
-          <!-- Enemies Side -->
-          <div class="enemies-stage-container" id="enemies-container">
-            <!-- Dynamically populated enemy units (1 ~ 3) -->
-          </div>
-        </div>
-
-        <!-- Lower Combat HUD (Hand, Energy, Piles, End Turn) -->
-        <div class="combat-hud-bottom">
-          <!-- Left: Draw Pile & Energy Orb -->
-          <div class="hud-left-dock">
-            <button id="btn-draw-pile" class="pile-btn draw-pile-btn" title="뽑을 카드 더미">
-              <div class="pile-icon">🎴</div>
-              <div class="pile-counter" id="draw-pile-count">10</div>
-              <div class="pile-label">DRAW</div>
-            </button>
-
-            <div class="energy-orb" id="energy-orb">
-              <div class="energy-orb-glow"></div>
-              <div class="energy-text"><span id="energy-curr">3</span>/<span id="energy-max">3</span></div>
-              <div class="energy-label">ENERGY</div>
+            <!-- Cards Hand Carousel (Spring Physics + Tilt) -->
+            <div id="cards-hand-container">
+              <!-- Dynamically populated playing cards -->
             </div>
-          </div>
 
-          <!-- Center: Dynamic Card Hand Container -->
-          <div class="hand-container" id="hand-container">
-            <!-- Dynamically rendered playable card elements -->
-          </div>
-
-          <!-- Right: End Turn & Discard / Exhaust Piles -->
-          <div class="hud-right-dock">
-            <button id="btn-end-turn" class="btn-end-turn">
-              <span class="btn-end-turn-title">턴 종료</span>
-              <span class="btn-end-turn-sub">(SPACE / E)</span>
-              <div class="end-turn-glow"></div>
-            </button>
-
-            <div class="piles-right-group">
-              <button id="btn-discard-pile" class="pile-btn discard-pile-btn" title="버린 카드 더미">
-                <div class="pile-icon">🗑️</div>
-                <div class="pile-counter" id="discard-pile-count">0</div>
-                <div class="pile-label">DISCARD</div>
+            <!-- Action Buttons Row -->
+            <div class="hand-actions-bar">
+              <button id="btn-play-hand" class="btn-balatro btn-play">
+                <span class="btn-label">PLAY HAND</span>
+                <span class="btn-sub" id="play-hand-sub">(0/5 CARDS)</span>
               </button>
-
-              <button id="btn-exhaust-pile" class="pile-btn exhaust-pile-btn" title="소멸된 카드 더미">
-                <div class="pile-icon">💨</div>
-                <div class="pile-counter" id="exhaust-pile-count">0</div>
-                <div class="pile-label">EXHAUST</div>
+              <button id="btn-discard-hand" class="btn-balatro btn-discard">
+                <span class="btn-label">DISCARD</span>
+                <span class="btn-sub" id="discard-hand-sub">(0/5)</span>
               </button>
             </div>
           </div>
+
         </div>
-      </section>
 
-      <!-- ================= SCREEN 4: REWARD SCREEN ================= -->
-      <section id="screen-reward" class="game-screen hidden">
-        <div class="reward-modal-box">
-          <div class="reward-header">
-            <div class="victory-banner">VICTORY!</div>
-            <h2>전투 승리 보상</h2>
-            <p>심연의 수호자를 격퇴하고 전리품을 획득했습니다.</p>
-          </div>
+      </div>
 
-          <div class="reward-items-list" id="reward-items-list">
-            <!-- Gold, Potion, Card, Relic reward rows -->
-          </div>
+    </div>
 
-          <div class="reward-card-choice-overlay hidden" id="card-choice-overlay">
-            <h3>새로운 카드를 1장 선택하여 덱에 추가하십시오</h3>
-            <div class="card-choices-grid" id="card-choices-grid">
-              <!-- 3 procedural cards -->
-            </div>
-            <button id="btn-skip-card-reward" class="btn-sts-secondary">보상 건너뛰기 (SKIP)</button>
-          </div>
-
-          <div class="reward-actions">
-            <button id="btn-claim-rewards-continue" class="btn-sts-primary">
-              <span>다음 구역으로 이동 (PROCEED)</span>
-            </button>
-          </div>
+    <!-- ================= MODAL: BLIND SELECTION SCREEN ================= -->
+    <div id="screen-blind-select" class="overlay-modal hidden">
+      <div class="modal-content blind-select-content">
+        <div class="modal-title-header">
+          <h2>SELECT NEXT BLIND (ANTE <span id="bs-ante-num">1</span>)</h2>
+          <p>도전할 블라인드를 선택하십시오. 승리 시 상점이 열립니다.</p>
         </div>
-      </section>
 
-      <!-- ================= SCREEN 5: CAMPFIRE / REST SITE ================= -->
-      <section id="screen-rest" class="game-screen hidden">
-        <div class="rest-site-box">
-          <div class="campfire-anim">🔥</div>
-          <h2>조용한 모닥불 (REST SITE)</h2>
-          <p>따스한 불꽃 아래에서 상처를 치료하거나 무기를 연마할 수 있습니다.</p>
-
-          <div class="rest-options-grid">
-            <div class="rest-option-card" id="btn-rest-heal">
-              <div class="rest-icon">💤</div>
-              <h3>휴식 (REST)</h3>
-              <p>최대 체력의 30% (<span id="rest-heal-amount">24</span> HP)를 회복합니다.</p>
-            </div>
-
-            <div class="rest-option-card" id="btn-rest-smith">
-              <div class="rest-icon">🔨</div>
-              <h3>제련 (SMITH)</h3>
-              <p>보유한 카드 중 1장을 선택해 영구적으로 강화(+)합니다.</p>
-            </div>
-
-            <div class="rest-option-card" id="btn-rest-toke">
-              <div class="rest-icon">💨</div>
-              <h3>정화 (PURIFY)</h3>
-              <p>덱에서 불필요한 카드 1장을 영구히 제거합니다.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ================= SCREEN 6: MERCHANT / SHOP ================= -->
-      <section id="screen-shop" class="game-screen hidden">
-        <div class="shop-wrapper">
-          <div class="shop-top">
-            <div class="shop-npc-portrait">🧙‍♂️</div>
-            <div class="shop-greeting">
-              <h2>첨탑의 방랑 상인</h2>
-              <p>"어서 오게나, 등반자여. 금화만 있다면 그 무엇이든 자네의 힘이 되어주지."</p>
-            </div>
-            <div class="shop-gold-badge">🪙 보유 골드: <span id="shop-player-gold">99</span></div>
-          </div>
-
-          <div class="shop-sections">
-            <div class="shop-section-block">
-              <div class="section-title">CARDS FOR SALE</div>
-              <div class="shop-cards-row" id="shop-cards-row"></div>
-            </div>
-
-            <div class="shop-section-block">
-              <div class="section-title">RELICS & POTIONS</div>
-              <div class="shop-relics-row" id="shop-relics-row"></div>
-            </div>
-
-            <div class="shop-section-block shop-service-block">
-              <div class="section-title">CARD REMOVAL SERVICE</div>
-              <div class="card-removal-box" id="btn-shop-remove-card">
-                <div class="remove-icon">✂️</div>
-                <div class="remove-title">덱에서 카드 1장 제거</div>
-                <div class="shop-price">🪙 <span id="shop-remove-cost">75</span> Gold</div>
-              </div>
+        <div class="blinds-cards-row">
+          <!-- Small Blind -->
+          <div class="blind-choice-card" id="card-small-blind">
+            <div class="bc-tag">SMALL BLIND</div>
+            <div class="bc-icon">🔵</div>
+            <div class="bc-score-label">SCORE AT LEAST</div>
+            <div class="bc-score-val" id="bc-small-score">300</div>
+            <div class="bc-reward">REWARD: <span class="money-text">$3</span></div>
+            <div class="bc-actions">
+              <button class="btn-balatro btn-select-blind" data-blind="small">SELECT</button>
+              <button class="btn-skip-blind" data-blind="small">SKIP (<span class="skip-tag-text">Mega Pack</span>)</button>
             </div>
           </div>
 
-          <div class="shop-bottom-bar">
-            <button id="btn-leave-shop" class="btn-sts-primary">상점 떠나기 (LEAVE)</button>
-          </div>
-        </div>
-      </section>
-
-      <!-- ================= SCREEN 7: GAME OVER & VICTORY ================= -->
-      <section id="screen-gameover" class="game-screen hidden">
-        <div class="endgame-box defeat-box">
-          <div class="endgame-icon">💀</div>
-          <h1 class="endgame-title">YOU DIED</h1>
-          <p class="endgame-subtitle">첨탑의 가혹한 시련이 당신의 여정을 끝마쳤습니다.</p>
-
-          <div class="endgame-stats-card">
-            <div class="eg-stat-row"><span>도달한 층수:</span><strong id="eg-floor">Act 1 - Floor 6</strong></div>
-            <div class="eg-stat-row"><span>처치한 적:</span><strong id="eg-kills">5</strong></div>
-            <div class="eg-stat-row"><span>사용한 카드:</span><strong id="eg-cards-played">34</strong></div>
-            <div class="eg-stat-row"><span>수집한 유물:</span><strong id="eg-relics">3</strong></div>
-            <div class="eg-stat-row highlight"><span>최종 등반 점수:</span><strong id="eg-score">450 PTS</strong></div>
+          <!-- Big Blind -->
+          <div class="blind-choice-card" id="card-big-blind">
+            <div class="bc-tag">BIG BLIND</div>
+            <div class="bc-icon">🟡</div>
+            <div class="bc-score-label">SCORE AT LEAST</div>
+            <div class="bc-score-val" id="bc-big-score">450</div>
+            <div class="bc-reward">REWARD: <span class="money-text">$4</span></div>
+            <div class="bc-actions">
+              <button class="btn-balatro btn-select-blind" data-blind="big">SELECT</button>
+              <button class="btn-skip-blind" data-blind="big">SKIP (<span class="skip-tag-text">+1 Voucher</span>)</button>
+            </div>
           </div>
 
-          <button id="btn-restart-run" class="btn-sts-primary">새로운 여정 시작 (PLAY AGAIN)</button>
-        </div>
-      </section>
-
-      <section id="screen-victory" class="game-screen hidden">
-        <div class="endgame-box victory-box">
-          <div class="endgame-icon">🏆</div>
-          <h1 class="endgame-title victory-title">THE SPIRE CONQUERED!</h1>
-          <p class="endgame-subtitle">심연의 가장 높은 곳에서 당신의 이름을 영원히 새겼습니다!</p>
-
-          <div class="endgame-stats-card">
-            <div class="eg-stat-row"><span>클리어 층수:</span><strong>ALL ACTS CLEARED</strong></div>
-            <div class="eg-stat-row"><span>총 처치 수:</span><strong id="vic-kills">18</strong></div>
-            <div class="eg-stat-row"><span>총 플레이 턴:</span><strong id="vic-turns">62</strong></div>
-            <div class="eg-stat-row highlight"><span>명예 점수:</span><strong id="vic-score">2,500 PTS</strong></div>
+          <!-- Boss Blind -->
+          <div class="blind-choice-card boss-choice-card" id="card-boss-blind">
+            <div class="bc-tag">BOSS BLIND</div>
+            <div class="bc-icon" id="bc-boss-icon">💀</div>
+            <h3 class="bc-boss-name" id="bc-boss-name">THE HOOK</h3>
+            <div class="bc-boss-desc" id="bc-boss-desc">매 핸드를 낼 때마다 무작위 카드 2장을 버립니다.</div>
+            <div class="bc-score-label">SCORE AT LEAST</div>
+            <div class="bc-score-val" id="bc-boss-score">600</div>
+            <div class="bc-reward">REWARD: <span class="money-text">$5</span></div>
+            <div class="bc-actions">
+              <button class="btn-balatro btn-select-blind" data-blind="boss">SELECT</button>
+            </div>
           </div>
-
-          <button id="btn-vic-restart" class="btn-sts-primary">새로운 승리 기록하기</button>
-        </div>
-      </section>
-
-    </main>
-
-    <!-- ================= MODAL: DECK / DISCARD / EXHAUST / SMITH VIEWER ================= -->
-    <div id="deck-modal" class="fullscreen-modal hidden">
-      <div class="modal-backdrop"></div>
-      <div class="modal-window">
-        <div class="modal-header">
-          <h2 id="deck-modal-title">내 덱 목록 (DECK VIEW)</h2>
-          <p id="deck-modal-subtitle">현재 덱에 포함된 모든 카드입니다.</p>
-          <button id="btn-close-deck-modal" class="modal-close-btn">✕</button>
-        </div>
-        <div class="deck-cards-grid-scroll" id="deck-modal-grid">
-          <!-- Dynamically populated cards -->
         </div>
       </div>
     </div>
 
-    <!-- ================= FLOATING TOOLTIP ================= -->
-    <div id="global-tooltip" class="hidden">
-      <div id="tt-name">키워드 이름</div>
-      <div id="tt-desc">키워드 설명 내용이 여기에 표시됩니다.</div>
+    <!-- ================= MODAL: THE SHOP & BOOSTER PACKS ================= -->
+    <div id="screen-shop" class="overlay-modal hidden">
+      <div class="modal-content shop-modal-content">
+        <div class="shop-header-row">
+          <div class="shop-title-badge">
+            <h2>THE SHOP</h2>
+            <p>조커, 타로, 행성 카드 및 부스터 팩을 구매하여 덱을 강화하십시오.</p>
+          </div>
+          <div class="shop-money-dock">
+            <span>🪙 MONEY:</span>
+            <span class="money-text" id="shop-money-val">$4</span>
+          </div>
+        </div>
+
+        <div class="shop-main-shelves">
+          <!-- Shelf 1: Jokers & Consumables -->
+          <div class="shop-shelf-block">
+            <div class="shelf-label">CARDS & JOKERS</div>
+            <div class="shop-items-row" id="shop-cards-row">
+              <!-- Dynamically populated shop items -->
+            </div>
+          </div>
+
+          <!-- Shelf 2: Booster Packs & Vouchers -->
+          <div class="shop-shelf-block">
+            <div class="shelf-label">BOOSTER PACKS & VOUCHERS</div>
+            <div class="shop-items-row" id="shop-packs-row">
+              <!-- Arcana Pack, Celestial Pack, Buffoon Pack -->
+            </div>
+          </div>
+        </div>
+
+        <div class="shop-bottom-controls">
+          <button id="btn-reroll-shop" class="btn-balatro btn-reroll">
+            <span>REROLL SHOP</span>
+            <span class="money-text" id="shop-reroll-cost">($5)</span>
+          </button>
+          <button id="btn-next-round" class="btn-balatro btn-next-round">
+            <span>NEXT ROUND ➔</span>
+          </button>
+        </div>
+      </div>
     </div>
+
+    <!-- ================= MODAL: BOOSTER PACK OPENING ================= -->
+    <div id="screen-pack-open" class="overlay-modal hidden">
+      <div class="modal-content pack-open-content">
+        <h2 id="pack-open-title">BUFFOON PACK</h2>
+        <p id="pack-open-subtitle">카드를 1장 선택하여 획득하십시오.</p>
+        
+        <div class="pack-cards-grid" id="pack-cards-container">
+          <!-- 2 to 4 pack choices -->
+        </div>
+
+        <button id="btn-skip-pack" class="btn-balatro">SKIP REMAINING</button>
+      </div>
+    </div>
+
+    <!-- ================= MODAL: DECK VIEWER ================= -->
+    <div id="screen-deck-view" class="overlay-modal hidden">
+      <div class="modal-content deck-view-content">
+        <div class="modal-title-header">
+          <h2>FULL DECK COMPOSITION (<span id="dv-card-count">52</span> CARDS)</h2>
+          <button id="btn-close-deck-view" class="btn-close-modal">✕</button>
+        </div>
+        <div class="deck-grid-scroll" id="deck-view-grid">
+          <!-- 52 playing cards -->
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= MODAL: GAME OVER & VICTORY ================= -->
+    <div id="screen-game-end" class="overlay-modal hidden">
+      <div class="modal-content end-game-content">
+        <h1 id="end-title" class="end-title-defeat">GAME OVER</h1>
+        <p id="end-subtitle">블라인드 목표 점수를 달성하지 못했습니다.</p>
+
+        <div class="end-stats-card">
+          <div class="end-stat-row"><span>최고 도달 ANTE:</span><strong id="end-ante-text">Ante 4</strong></div>
+          <div class="end-stat-row"><span>플레이한 라운드:</span><strong id="end-rounds-text">11</strong></div>
+          <div class="end-stat-row"><span>최고 단일 핸드 점수:</span><strong id="end-best-hand-text">24,500</strong></div>
+          <div class="end-stat-row"><span>수집한 조커:</span><strong id="end-jokers-text">5</strong></div>
+        </div>
+
+        <button id="btn-play-again" class="btn-balatro btn-play-again">PLAY AGAIN (새로운 런)</button>
+      </div>
+    </div>
+
+    <!-- Global Floating Card Tooltip -->
+    <div id="card-tooltip" class="hidden">
+      <div id="tt-card-title">JOKER NAME</div>
+      <div id="tt-card-edition">FOIL EDITION</div>
+      <div id="tt-card-desc">Joker effect description goes here.</div>
+    </div>
+
   </div>
 
-  <!-- Game Scripts -->
+  <!-- Balatro Game Modules -->
   <script src="js/audio.js"></script>
-  <script src="js/relics.js"></script>
-  <script src="js/cards.js"></script>
-  <script src="js/enemies.js"></script>
-  <script src="js/map.js"></script>
-  <script src="js/combat.js"></script>
-  <script src="js/ui.js"></script>
+  <script src="js/shader.js"></script>
+  <script src="js/deck.js"></script>
+  <script src="js/jokers.js"></script>
+  <script src="js/consumables.js"></script>
+  <script src="js/blinds.js"></script>
+  <script src="js/scoring.js"></script>
   <script src="js/game.js"></script>
 </body>
 </html>

@@ -1,327 +1,624 @@
 /* ==========================================================================
-   SLAY THE ABYSS - MASTER GAME STATE ORCHESTRATOR
+   BALATRO WEB - MASTER GAME LOOP & STATE ORCHESTRATOR
    ========================================================================== */
 
-class SlayTheAbyssGame {
+class BalatroGame {
   constructor() {
-    this.state = 'TITLE'; // 'TITLE', 'MAP', 'COMBAT', 'REWARD', 'REST', 'SHOP', 'GAME_OVER', 'VICTORY'
-    this.map = new SpireMap(15);
-    this.player = null;
-    this.combat = null;
+    this.deck = [];
+    this.drawPile = [];
+    this.hand = [];
+    this.discardPile = [];
+    this.selectedCards = new Set();
+    
+    this.jokers = [];
+    this.consumables = [];
+    
+    this.ante = 1;
+    this.round = 1;
+    this.money = 4;
+    
+    this.handsRemaining = 4;
+    this.discardsRemaining = 3;
+    this.handSize = 8;
+    this.roundScore = 0;
+    this.targetScore = 300;
+    this.currentBlindType = 'small';
+    this.currentBlindData = null;
 
-    this.setupUIBindings();
+    this.handLevels = {};
+    Object.keys(PokerHandEvaluator.HAND_BASE_STATS).forEach(h => this.handLevels[h] = 1);
+    this.handsPlayedThisRoundHistory = [];
+    
+    this.scoringEngine = new ScoringEngine(this);
+    this.shopRerollCost = 5;
+
+    this.setupInputs();
+    this.startNewGame();
   }
 
-  setupUIBindings() {
-    // Title Buttons
-    document.getElementById('btn-new-game').addEventListener('click', () => {
-      window.soundEngine.init();
-      window.soundEngine.startAmbient();
-      this.startNewRun();
-    });
+  startNewGame() {
+    window.balatroAudio.init();
+    window.balatroAudio.startLoFiBGM();
 
-    document.getElementById('btn-card-library').addEventListener('click', () => {
-      const allCards = CARD_DATABASE.map(def => new Card(def));
-      window.uiManager.openDeckModal(allCards, '카드 도감 (ALL CARDS LIBRARY)');
-    });
+    this.deck = DeckManager.createStandardDeck();
+    this.jokers = [
+      new JokerInstance(JOKER_DATABASE.find(j => j.id === 'joker'))
+    ];
+    this.consumables = [];
+    this.ante = 1;
+    this.round = 1;
+    this.money = 4;
+    this.shopRerollCost = 5;
 
-    // Reward Screen Claim Button
-    document.getElementById('btn-claim-rewards-continue').addEventListener('click', () => {
-      this.showScreen('MAP');
-      this.renderMap();
-    });
+    this.showBlindSelect();
+  }
 
-    // Rest Site Buttons
-    document.getElementById('btn-rest-heal').addEventListener('click', () => {
-      const healAmt = Math.floor(this.player.maxHp * 0.3);
-      this.player.heal(healAmt);
-      window.soundEngine.playSFX('gold');
-      window.uiManager.showNotice(`체력을 ${healAmt} 회복했습니다!`);
-      this.showScreen('MAP');
-      this.renderMap();
-    });
+  showBlindSelect() {
+    const modal = document.getElementById('screen-blind-select');
+    modal.classList.add('active');
+    document.getElementById('bs-ante-num').innerText = this.ante;
 
-    document.getElementById('btn-rest-smith').addEventListener('click', () => {
-      const upgradable = this.player.deck.filter(c => !c.upgraded);
-      if (upgradable.length === 0) {
-        window.uiManager.showNotice('강화할 수 있는 카드가 없습니다!');
-        return;
+    // Small Blind
+    const smallData = BlindManager.getBlindData(this.ante, 'small');
+    document.getElementById('bc-small-score').innerText = smallData.score;
+
+    // Big Blind
+    const bigData = BlindManager.getBlindData(this.ante, 'big');
+    document.getElementById('bc-big-score').innerText = bigData.score;
+
+    // Boss Blind
+    const bossData = BlindManager.getBlindData(this.ante, 'boss');
+    document.getElementById('bc-boss-score').innerText = bossData.score;
+    document.getElementById('bc-boss-name').innerText = bossData.bossData.name;
+    document.getElementById('bc-boss-desc').innerText = bossData.bossData.desc;
+    document.getElementById('bc-boss-icon').innerText = bossData.bossData.icon;
+  }
+
+  startRound(blindType) {
+    this.currentBlindType = blindType;
+    this.currentBlindData = BlindManager.getBlindData(this.ante, blindType);
+    this.targetScore = this.currentBlindData.score;
+    this.roundScore = 0;
+    this.handsRemaining = 4;
+    this.discardsRemaining = 3;
+    this.handsPlayedThisRoundHistory = [];
+    this.selectedCards.clear();
+
+    // Close Blind Select Modal
+    document.getElementById('screen-blind-select').classList.remove('active');
+
+    // Update Left Sidebar
+    document.getElementById('sb-blind-name').innerText = this.currentBlindData.name.toUpperCase();
+    document.getElementById('sb-target-score').innerText = this.targetScore;
+    document.getElementById('sb-blind-reward').innerText = `$${this.currentBlindData.reward}`;
+    document.getElementById('sb-current-score').innerText = '0';
+    document.getElementById('sb-score-fill').style.width = '0%';
+    document.getElementById('sb-ante-text').innerText = `${this.ante} / 8`;
+    document.getElementById('sb-round-text').innerText = this.round;
+    document.getElementById('sb-money-text').innerText = `$${this.money}`;
+
+    // Boss debuff tag
+    const debuffEl = document.getElementById('sb-boss-debuff');
+    if (this.currentBlindData.bossData) {
+      debuffEl.classList.remove('hidden');
+      debuffEl.innerText = this.currentBlindData.bossData.desc;
+    } else {
+      debuffEl.classList.add('hidden');
+    }
+
+    // Reset deck cards & shuffle
+    this.drawPile = [...this.deck];
+    this.drawPile.forEach(c => {
+      c.debuffed = false;
+      if (this.currentBlindData.bossData && this.currentBlindData.bossData.applyDebuff) {
+        this.currentBlindData.bossData.applyDebuff(c);
       }
-      window.uiManager.openDeckModal(upgradable, '강화할 카드를 선택하십시오', (card) => {
-        card.applyUpgrade();
-        window.soundEngine.playSFX('block');
-        window.uiManager.showNotice(`${card.name} 카드가 강화되었습니다!`);
-        this.showScreen('MAP');
-        this.renderMap();
+    });
+    this.shuffle(this.drawPile);
+    this.hand = [];
+    this.discardPile = [];
+
+    // Draw Starting Hand (8 Cards)
+    this.drawCards(this.handSize);
+    this.updateHUD();
+  }
+
+  shuffle(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [array[i], array[j]] = [array[j], array[i]];
+    }
+  }
+
+  drawCards(count) {
+    for (let i = 0; i < count; i++) {
+      if (this.hand.length >= this.handSize) break;
+      if (this.drawPile.length === 0) break;
+
+      const card = this.drawPile.pop();
+      this.hand.push(card);
+      window.balatroAudio.playSFX('card_draw');
+    }
+    this.renderHand();
+  }
+
+  setupInputs() {
+    // Play Hand Button
+    document.getElementById('btn-play-hand').addEventListener('click', () => {
+      this.playSelectedHand();
+    });
+
+    // Discard Button
+    document.getElementById('btn-discard-hand').addEventListener('click', () => {
+      this.discardSelectedCards();
+    });
+
+    // Sort by Rank
+    document.getElementById('btn-sort-rank').addEventListener('click', () => {
+      this.hand.sort((a, b) => (RANK_ORDERS[b.rank] || 0) - (RANK_ORDERS[a.rank] || 0));
+      this.renderHand();
+      window.balatroAudio.playSFX('card_select');
+    });
+
+    // Sort by Suit
+    document.getElementById('btn-sort-suit').addEventListener('click', () => {
+      this.hand.sort((a, b) => a.suit.localeCompare(b.suit));
+      this.renderHand();
+      window.balatroAudio.playSFX('card_select');
+    });
+
+    // Select Blind Buttons
+    document.querySelectorAll('.btn-select-blind').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const type = btn.dataset.blind;
+        this.startRound(type);
       });
     });
 
-    document.getElementById('btn-rest-toke').addEventListener('click', () => {
-      window.uiManager.openDeckModal(this.player.deck, '제거할 카드를 선택하십시오', (card, idx) => {
-        this.player.deck.splice(idx, 1);
-        window.soundEngine.playSFX('debuff');
-        window.uiManager.showNotice(`${card.name} 카드가 제거되었습니다!`);
-        this.showScreen('MAP');
-        this.renderMap();
+    // Skip Blind Buttons
+    document.querySelectorAll('.btn-skip-blind').forEach(btn => {
+      btn.addEventListener('click', () => {
+        window.balatroAudio.playSFX('buy_item');
+        this.money += 5;
+        this.startRound('boss');
       });
     });
 
-    // Leave Shop Button
-    document.getElementById('btn-leave-shop').addEventListener('click', () => {
-      this.showScreen('MAP');
-      this.renderMap();
-    });
-
-    // Shop Card Removal Service
-    document.getElementById('btn-shop-remove-card').addEventListener('click', () => {
-      const cost = 75;
-      if (this.player.gold >= cost) {
-        window.uiManager.openDeckModal(this.player.deck, '제거할 카드를 선택하십시오', (card, idx) => {
-          this.player.gold -= cost;
-          this.player.deck.splice(idx, 1);
-          window.soundEngine.playSFX('debuff');
-          document.getElementById('shop-player-gold').innerText = this.player.gold;
-          window.uiManager.updateTopBar(this.player);
-          window.uiManager.showNotice(`${card.name} 카드가 제거되었습니다!`);
-        });
-      } else {
-        window.uiManager.showNotice('골드가 부족합니다!');
+    // Shop Reroll
+    document.getElementById('btn-reroll-shop').addEventListener('click', () => {
+      if (this.money >= this.shopRerollCost) {
+        this.money -= this.shopRerollCost;
+        this.shopRerollCost += 1;
+        window.balatroAudio.playSFX('buy_item');
+        this.populateShop();
       }
     });
 
-    // Restart Run Buttons
-    document.getElementById('btn-restart-run').addEventListener('click', () => this.startNewRun());
-    document.getElementById('btn-vic-restart').addEventListener('click', () => this.startNewRun());
-  }
-
-  showScreen(screenName) {
-    this.state = screenName;
-    const screens = ['title', 'map', 'combat', 'reward', 'rest', 'shop', 'gameover', 'victory'];
-    screens.forEach(s => {
-      const el = document.getElementById(`screen-${s}`);
-      if (el) {
-        if (s.toUpperCase() === screenName) {
-          el.classList.remove('hidden');
-          setTimeout(() => el.classList.add('active'), 10);
-        } else {
-          el.classList.remove('active');
-          setTimeout(() => el.classList.add('hidden'), 350);
+    // Shop Next Round
+    document.getElementById('btn-next-round').addEventListener('click', () => {
+      document.getElementById('screen-shop').classList.remove('active');
+      if (this.currentBlindType === 'boss') {
+        this.ante++;
+        if (this.ante > 8) {
+          this.triggerGameEnd(true);
+          return;
         }
       }
+      this.round++;
+      this.showBlindSelect();
     });
 
-    const topBar = document.getElementById('top-bar');
-    if (screenName === 'TITLE') {
-      topBar.classList.add('hidden');
-    } else {
-      topBar.classList.remove('hidden');
-      window.uiManager.updateTopBar(this.player);
-    }
-  }
+    // Play Again Button
+    document.getElementById('btn-play-again').addEventListener('click', () => {
+      document.getElementById('screen-game-end').classList.remove('active');
+      this.startNewGame();
+    });
 
-  startNewRun() {
-    this.player = new Unit('아이언클래드 (Ironclad)', 80, '🛡️');
-    this.player.gold = 99;
-    this.player.deck = CardManager.getStarterDeck();
-    this.player.relics = [RELIC_DATA.burning_blood];
-    this.player.statsRecord = {
-      kills: 0,
-      cardsPlayed: 0,
-      floorsCleared: 0
-    };
-
-    this.map.generate();
-    this.showScreen('MAP');
-    this.renderMap();
-  }
-
-  renderMap() {
-    const container = document.getElementById('map-nodes-layer');
-    const svg = document.getElementById('map-svg-lines');
-    this.map.render(container, svg, (node) => this.handleNodeSelect(node));
-
-    // Scroll to active node
-    const viewport = document.getElementById('map-scroll-viewport');
-    viewport.scrollTop = viewport.scrollHeight;
-  }
-
-  toggleMap() {
-    if (this.state === 'MAP') {
-      if (this.combat) this.showScreen('COMBAT');
-    } else {
-      this.showScreen('MAP');
-      this.renderMap();
-    }
-  }
-
-  handleNodeSelect(node) {
-    this.player.statsRecord.floorsCleared++;
-    const floorText = `ACT 1 - FLOOR ${node.floor + 1}`;
-    window.uiManager.updateTopBar(this.player, floorText);
-
-    if (node.type === 'monster') {
-      const mobKeys = ['cultist', 'jaw_worm'];
-      const chosen = mobKeys[Math.floor(Math.random() * mobKeys.length)];
-      this.startCombat({ enemies: [chosen], isBoss: false });
-    } else if (node.type === 'elite') {
-      this.startCombat({ enemies: ['gremlin_nob'], isBoss: false });
-    } else if (node.type === 'boss') {
-      this.startCombat({ enemies: ['the_guardian'], isBoss: true });
-    } else if (node.type === 'rest') {
-      this.showRestSite();
-    } else if (node.type === 'shop') {
-      this.showShop();
-    } else {
-      // Unknown room (Mystery)
-      const roll = Math.random();
-      if (roll < 0.5) this.startCombat({ enemies: ['jaw_worm'], isBoss: false });
-      else if (roll < 0.8) this.showShop();
-      else this.showRestSite();
-    }
-  }
-
-  startCombat(encounterDef) {
-    this.showScreen('COMBAT');
-    this.combat = new CombatEngine(
-      this.player,
-      encounterDef,
-      (goldEarned) => this.handleCombatVictory(goldEarned, encounterDef.isBoss),
-      () => this.handleCombatDefeat()
-    );
-  }
-
-  handleCombatVictory(goldEarned, isBoss) {
-    if (isBoss) {
-      this.showVictoryScreen();
-      return;
-    }
-
-    this.player.gold += goldEarned;
-    window.uiManager.updateTopBar(this.player);
-
-    this.showScreen('REWARD');
-    const list = document.getElementById('reward-items-list');
-    list.innerHTML = `
-      <div class="reward-row-item">
-        <span>🪙</span>
-        <span>${goldEarned} Gold 획득</span>
-      </div>
-      <div class="reward-row-item" id="reward-pick-card-btn">
-        <span>🃏</span>
-        <span>새로운 카드 1장 선택 (CHOOSE CARD)</span>
-      </div>
-    `;
-
-    document.getElementById('reward-pick-card-btn').addEventListener('click', () => {
-      this.openCardRewardChoice();
+    // View Deck Button
+    document.getElementById('btn-view-deck').addEventListener('click', () => {
+      this.openDeckViewer();
+    });
+    document.getElementById('btn-close-deck-view').addEventListener('click', () => {
+      document.getElementById('screen-deck-view').classList.remove('active');
     });
   }
 
-  openCardRewardChoice() {
-    const overlay = document.getElementById('card-choice-overlay');
-    overlay.classList.remove('hidden');
-    const grid = document.getElementById('card-choices-grid');
-    grid.innerHTML = '';
+  renderHand() {
+    const container = document.getElementById('cards-hand-container');
+    container.innerHTML = '';
+    const total = this.hand.length;
 
-    const options = CardManager.getRandomRewardCards(3);
-    options.forEach(card => {
+    this.hand.forEach((card, idx) => {
       const el = document.createElement('div');
-      el.className = `game-card card-${card.type} ${card.upgraded ? 'upgraded' : ''}`;
-      el.style.position = 'relative';
-      el.style.transform = 'none';
+      el.className = `playing-card suit-${card.suit} enh-${card.enhancement} ${this.selectedCards.has(card) ? 'selected' : ''}`;
+      
+      // Dynamic fanning layout
+      const mid = (total - 1) / 2;
+      const angle = (idx - mid) * 3.5;
+      const yOffset = Math.abs(idx - mid) * 6;
+      el.style.left = `${(idx / Math.max(1, total - 1)) * 75}%`;
+      el.style.transform = `rotate(${angle}deg) translateY(${yOffset}px)`;
+      el.style.zIndex = idx + 1;
+
       el.innerHTML = `
-        <div class="card-top-row">
-          <div class="card-energy-badge">${card.cost === -1 ? 'X' : card.cost}</div>
-          <div class="card-title">${card.name}</div>
+        <div class="card-corner top-corner">
+          <div class="card-rank">${card.rank}</div>
+          <div class="card-suit-mini">${SUIT_SYMBOLS[card.suit]}</div>
         </div>
-        <div class="card-art-box">${card.icon}</div>
-        <div class="card-desc-box">${card.getFormattedDesc(null)}</div>
+        <div class="card-center-art">${SUIT_SYMBOLS[card.suit]}</div>
+        <div class="card-corner bottom-corner">
+          <div class="card-rank">${card.rank}</div>
+          <div class="card-suit-mini">${SUIT_SYMBOLS[card.suit]}</div>
+        </div>
       `;
 
       el.addEventListener('click', () => {
-        this.player.deck.push(card);
-        window.soundEngine.playSFX('card_play');
-        window.uiManager.showNotice(`${card.name} 카드를 덱에 추가했습니다!`);
-        overlay.classList.add('hidden');
-        document.getElementById('reward-pick-card-btn').style.opacity = '0.4';
-        document.getElementById('reward-pick-card-btn').style.pointerEvents = 'none';
+        if (this.scoringEngine.isScoring) return;
+
+        if (this.selectedCards.has(card)) {
+          this.selectedCards.delete(card);
+        } else {
+          if (this.selectedCards.size < 5) {
+            this.selectedCards.add(card);
+          }
+        }
+        window.balatroAudio.playSFX('card_select');
+        this.renderHand();
+        this.updateSelectedPreview();
       });
 
-      grid.appendChild(el);
+      container.appendChild(el);
     });
 
-    document.getElementById('btn-skip-card-reward').onclick = () => {
-      overlay.classList.add('hidden');
-    };
+    document.getElementById('deck-remain-count').innerText = this.drawPile.length;
+    this.updateSelectedPreview();
   }
 
-  showRestSite() {
-    this.showScreen('REST');
-    document.getElementById('rest-heal-amount').innerText = Math.floor(this.player.maxHp * 0.3);
+  updateSelectedPreview() {
+    const selected = Array.from(this.selectedCards);
+    const evalResult = PokerHandEvaluator.evaluate(selected);
+    const handLvl = this.handLevels[evalResult.handName] || 1;
+    document.getElementById('detected-hand-label').innerText = `${evalResult.handName.toUpperCase()} (Lv.${handLvl})`;
+
+    document.getElementById('play-hand-sub').innerText = `(${selected.length}/5 CARDS)`;
+    document.getElementById('discard-hand-sub').innerText = `(${selected.length}/5)`;
   }
 
-  showShop() {
-    this.showScreen('SHOP');
-    document.getElementById('shop-player-gold').innerText = this.player.gold;
+  async playSelectedHand() {
+    if (this.scoringEngine.isScoring || this.selectedCards.size === 0 || this.handsRemaining <= 0) return;
 
+    const played = Array.from(this.selectedCards);
+    this.handsRemaining--;
+    this.selectedCards.clear();
+
+    // Remove played cards from hand and display in scoring arena
+    this.hand = this.hand.filter(c => !played.includes(c));
+    this.renderPlayedCards(played);
+    this.renderHand();
+    this.updateHUD();
+
+    // Boss blind OnHandPlayed hook (e.g. The Hook discards 2 cards)
+    if (this.currentBlindData.bossData && this.currentBlindData.bossData.onHandPlayed) {
+      this.currentBlindData.bossData.onHandPlayed(this);
+      this.renderHand();
+    }
+
+    // Run Scoring Engine
+    await this.scoringEngine.runScoring(played, this.targetScore, (won) => {
+      document.getElementById('played-cards-holder').innerHTML = '';
+
+      if (won) {
+        window.balatroAudio.playSFX('blind_defeat');
+        // Earn Money: Blind Reward + Remaining Hands as Interest
+        const earned = this.currentBlindData.reward + this.handsRemaining;
+        this.money += earned;
+        this.openShop();
+      } else {
+        if (this.handsRemaining <= 0) {
+          this.triggerGameEnd(false);
+        } else {
+          // Draw cards back up to hand size
+          this.drawCards(this.handSize - this.hand.length);
+        }
+      }
+    });
+  }
+
+  renderPlayedCards(cards) {
+    const holder = document.getElementById('played-cards-holder');
+    holder.innerHTML = '';
+    cards.forEach(card => {
+      const el = document.createElement('div');
+      el.className = `playing-card suit-${card.suit} enh-${card.enhancement}`;
+      el.style.position = 'relative';
+      el.style.transform = 'none';
+      el.innerHTML = `
+        <div class="card-corner top-corner">
+          <div class="card-rank">${card.rank}</div>
+          <div class="card-suit-mini">${SUIT_SYMBOLS[card.suit]}</div>
+        </div>
+        <div class="card-center-art">${SUIT_SYMBOLS[card.suit]}</div>
+        <div class="card-corner bottom-corner">
+          <div class="card-rank">${card.rank}</div>
+          <div class="card-suit-mini">${SUIT_SYMBOLS[card.suit]}</div>
+        </div>
+      `;
+      holder.appendChild(el);
+    });
+  }
+
+  discardSelectedCards() {
+    if (this.scoringEngine.isScoring || this.selectedCards.size === 0 || this.discardsRemaining <= 0) return;
+
+    const count = this.selectedCards.size;
+    this.hand = this.hand.filter(c => !this.selectedCards.has(c));
+    this.selectedCards.clear();
+    this.discardsRemaining--;
+
+    window.balatroAudio.playSFX('card_play');
+    this.drawCards(count);
+    this.updateHUD();
+  }
+
+  updateHUD() {
+    document.getElementById('sb-hands-count').innerText = this.handsRemaining;
+    document.getElementById('sb-discards-count').innerText = this.discardsRemaining;
+    document.getElementById('sb-money-text').innerText = `$${this.money}`;
+    document.getElementById('joker-count-text').innerText = `${this.jokers.length}/5`;
+    document.getElementById('consumable-count-text').innerText = `${this.consumables.length}/2`;
+
+    this.renderTopDocks();
+  }
+
+  renderTopDocks() {
+    // 1. Jokers Dock
+    const jRow = document.getElementById('jokers-row');
+    jRow.innerHTML = '';
+    this.jokers.forEach(j => {
+      const el = document.createElement('div');
+      el.className = `joker-card edition-${j.edition}`;
+      el.innerHTML = `
+        <div class="joker-sprite-icon">${j.icon}</div>
+        <div class="joker-title-mini">${j.name}</div>
+        <div class="joker-cost-badge">$${j.cost}</div>
+      `;
+      el.title = `${j.name}: ${j.desc}`;
+      jRow.appendChild(el);
+    });
+
+    // 2. Consumables Dock
+    const cRow = document.getElementById('consumables-row');
+    cRow.innerHTML = '';
+    this.consumables.forEach((c, idx) => {
+      const el = document.createElement('div');
+      el.className = `joker-card`;
+      el.innerHTML = `
+        <div class="joker-sprite-icon">${c.icon}</div>
+        <div class="joker-title-mini">${c.name}</div>
+        <div class="joker-cost-badge">USE</div>
+      `;
+      el.title = `${c.name}: ${c.desc}`;
+      el.addEventListener('click', () => {
+        this.useConsumable(idx);
+      });
+      cRow.appendChild(el);
+    });
+  }
+
+  useConsumable(index) {
+    const item = this.consumables[index];
+    if (!item) return;
+
+    const selected = Array.from(this.selectedCards);
+    if (item.type === 'tarot') {
+      item.use(selected, this);
+      window.balatroAudio.playSFX('buy_item');
+      this.consumables.splice(index, 1);
+      this.renderHand();
+      this.updateHUD();
+    } else if (item.type === 'planet') {
+      if (this.handLevels[item.handTarget] !== undefined) {
+        this.handLevels[item.handTarget]++;
+        window.balatroAudio.playSFX('mult_x');
+        this.consumables.splice(index, 1);
+        this.updateHUD();
+      }
+    }
+  }
+
+  openShop() {
+    const modal = document.getElementById('screen-shop');
+    modal.classList.add('active');
+    document.getElementById('shop-money-val').innerText = `$${this.money}`;
+    document.getElementById('shop-reroll-cost').innerText = `($${this.shopRerollCost})`;
+
+    this.populateShop();
+  }
+
+  populateShop() {
+    // 1. Cards Shelf (2 Jokers + 1 Tarot/Planet)
     const cardsRow = document.getElementById('shop-cards-row');
     cardsRow.innerHTML = '';
-    const shopCards = CardManager.getRandomRewardCards(4);
 
-    shopCards.forEach(card => {
-      const price = card.rarity === 'rare' ? 140 : (card.rarity === 'uncommon' ? 80 : 50);
-      const wrap = document.createElement('div');
-      wrap.className = 'shop-card-wrapper';
-      wrap.innerHTML = `
-        <div class="game-card card-${card.type}" style="position:relative; transform:none;">
-          <div class="card-top-row">
-            <div class="card-energy-badge">${card.cost === -1 ? 'X' : card.cost}</div>
-            <div class="card-title">${card.name}</div>
-          </div>
-          <div class="card-art-box">${card.icon}</div>
-          <div class="card-desc-box">${card.getFormattedDesc(null)}</div>
-        </div>
-        <div class="shop-price">🪙 ${price} Gold</div>
+    for (let i = 0; i < 2; i++) {
+      const randomJokerDef = JOKER_DATABASE[Math.floor(Math.random() * JOKER_DATABASE.length)];
+      const jokerInst = new JokerInstance(randomJokerDef);
+      
+      const el = document.createElement('div');
+      el.className = `joker-card`;
+      el.style.width = '100px';
+      el.style.height = '130px';
+      el.innerHTML = `
+        <div class="joker-sprite-icon" style="font-size:42px;">${jokerInst.icon}</div>
+        <div class="joker-title-mini">${jokerInst.name}</div>
+        <div class="joker-cost-badge" style="font-size:10px;">$${jokerInst.cost}</div>
       `;
 
-      wrap.addEventListener('click', () => {
-        if (this.player.gold >= price) {
-          this.player.gold -= price;
-          this.player.deck.push(card);
-          document.getElementById('shop-player-gold').innerText = this.player.gold;
-          window.uiManager.updateTopBar(this.player);
-          window.soundEngine.playSFX('gold');
-          wrap.style.opacity = '0.3';
-          wrap.style.pointerEvents = 'none';
-          window.uiManager.showNotice(`${card.name} 카드를 구매했습니다!`);
-        } else {
-          window.uiManager.showNotice('골드가 부족합니다!');
+      el.addEventListener('click', () => {
+        if (this.money >= jokerInst.cost && this.jokers.length < 5) {
+          this.money -= jokerInst.cost;
+          this.jokers.push(jokerInst);
+          window.balatroAudio.playSFX('buy_item');
+          el.style.opacity = '0.3';
+          el.style.pointerEvents = 'none';
+          document.getElementById('shop-money-val').innerText = `$${this.money}`;
+          this.updateHUD();
         }
       });
 
-      cardsRow.appendChild(wrap);
+      cardsRow.appendChild(el);
+    }
+
+    // 2. Packs Shelf (Buffoon Pack & Arcana Pack)
+    const packsRow = document.getElementById('shop-packs-row');
+    packsRow.innerHTML = `
+      <div class="joker-card" id="btn-buy-buffoon" style="width:130px; height:130px; border-color:#a855f7;">
+        <div style="font-size:42px;">🃏</div>
+        <div class="joker-title-mini">BUFFOON PACK</div>
+        <div class="joker-cost-badge" style="font-size:10px;">$4</div>
+      </div>
+      <div class="joker-card" id="btn-buy-arcana" style="width:130px; height:130px; border-color:#38bdf8;">
+        <div style="font-size:42px;">🔮</div>
+        <div class="joker-title-mini">ARCANA PACK</div>
+        <div class="joker-cost-badge" style="font-size:10px;">$4</div>
+      </div>
+    `;
+
+    document.getElementById('btn-buy-buffoon').addEventListener('click', () => {
+      if (this.money >= 4) {
+        this.money -= 4;
+        this.openBoosterPack('buffoon');
+      }
+    });
+
+    document.getElementById('btn-buy-arcana').addEventListener('click', () => {
+      if (this.money >= 4) {
+        this.money -= 4;
+        this.openBoosterPack('arcana');
+      }
     });
   }
 
-  handleCombatDefeat() {
-    this.showScreen('GAMEOVER');
-    document.getElementById('eg-floor').innerText = `Act 1 - Floor ${this.player.statsRecord.floorsCleared}`;
-    document.getElementById('eg-kills').innerText = this.player.statsRecord.kills;
-    document.getElementById('eg-cards-played').innerText = this.player.statsRecord.cardsPlayed;
-    document.getElementById('eg-relics').innerText = this.player.relics.length;
-    const score = this.player.statsRecord.kills * 80 + this.player.statsRecord.floorsCleared * 120 + this.player.gold * 2;
-    document.getElementById('eg-score').innerText = `${score} PTS`;
+  openBoosterPack(type) {
+    const modal = document.getElementById('screen-pack-open');
+    modal.classList.add('active');
+    const container = document.getElementById('pack-cards-container');
+    container.innerHTML = '';
+
+    if (type === 'buffoon') {
+      document.getElementById('pack-open-title').innerText = 'BUFFOON PACK';
+      for (let i = 0; i < 2; i++) {
+        const jDef = JOKER_DATABASE[Math.floor(Math.random() * JOKER_DATABASE.length)];
+        const jInst = new JokerInstance(jDef);
+        const el = document.createElement('div');
+        el.className = 'joker-card';
+        el.style.width = '120px';
+        el.style.height = '160px';
+        el.innerHTML = `
+          <div style="font-size:48px;">${jInst.icon}</div>
+          <div class="joker-title-mini" style="font-size:16px;">${jInst.name}</div>
+          <p style="font-size:10px; color:#cbd5e1; text-align:center;">${jInst.desc}</p>
+        `;
+        el.addEventListener('click', () => {
+          if (this.jokers.length < 5) {
+            this.jokers.push(jInst);
+            window.balatroAudio.playSFX('buy_item');
+            modal.classList.remove('active');
+            this.updateHUD();
+          }
+        });
+        container.appendChild(el);
+      }
+    } else {
+      document.getElementById('pack-open-title').innerText = 'ARCANA PACK';
+      for (let i = 0; i < 3; i++) {
+        const tDef = TAROT_CARDS[Math.floor(Math.random() * TAROT_CARDS.length)];
+        const el = document.createElement('div');
+        el.className = 'joker-card';
+        el.style.width = '120px';
+        el.style.height = '160px';
+        el.innerHTML = `
+          <div style="font-size:48px;">${tDef.icon}</div>
+          <div class="joker-title-mini" style="font-size:16px;">${tDef.name}</div>
+          <p style="font-size:10px; color:#cbd5e1; text-align:center;">${tDef.desc}</p>
+        `;
+        el.addEventListener('click', () => {
+          if (this.consumables.length < 2) {
+            this.consumables.push(tDef);
+            window.balatroAudio.playSFX('buy_item');
+            modal.classList.remove('active');
+            this.updateHUD();
+          }
+        });
+        container.appendChild(el);
+      }
+    }
+
+    document.getElementById('btn-skip-pack').onclick = () => {
+      modal.classList.remove('active');
+    };
   }
 
-  showVictoryScreen() {
-    this.showScreen('VICTORY');
-    document.getElementById('vic-kills').innerText = this.player.statsRecord.kills;
-    document.getElementById('vic-turns').innerText = this.player.statsRecord.cardsPlayed;
-    const score = this.player.statsRecord.kills * 120 + 2000 + this.player.gold * 5;
-    document.getElementById('vic-score').innerText = `${score} PTS`;
+  openDeckViewer() {
+    const modal = document.getElementById('screen-deck-view');
+    modal.classList.add('active');
+    document.getElementById('dv-card-count').innerText = this.deck.length;
+
+    const grid = document.getElementById('deck-view-grid');
+    grid.innerHTML = '';
+    grid.style.display = 'grid';
+    grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(90px, 1fr))';
+    grid.style.gap = '10px';
+
+    this.deck.forEach(card => {
+      const el = document.createElement('div');
+      el.className = `playing-card suit-${card.suit} enh-${card.enhancement}`;
+      el.style.position = 'relative';
+      el.style.transform = 'none';
+      el.style.width = '90px';
+      el.style.height = '130px';
+      el.innerHTML = `
+        <div class="card-corner top-corner">
+          <div class="card-rank">${card.rank}</div>
+          <div class="card-suit-mini">${SUIT_SYMBOLS[card.suit]}</div>
+        </div>
+        <div class="card-center-art">${SUIT_SYMBOLS[card.suit]}</div>
+        <div class="card-corner bottom-corner">
+          <div class="card-rank">${card.rank}</div>
+          <div class="card-suit-mini">${SUIT_SYMBOLS[card.suit]}</div>
+        </div>
+      `;
+      grid.appendChild(el);
+    });
+  }
+
+  destroyJoker(jokerId) {
+    this.jokers = this.jokers.filter(j => j.id !== jokerId);
+    this.updateHUD();
+  }
+
+  triggerGameEnd(victory) {
+    const modal = document.getElementById('screen-game-end');
+    modal.classList.add('active');
+
+    const titleEl = document.getElementById('end-title');
+    if (victory) {
+      titleEl.className = 'end-title-victory';
+      titleEl.innerText = 'VICTORY! (ANTE 8 CONQUERED)';
+      document.getElementById('end-subtitle').innerText = '발라트로 첨탑의 모든 블라인드를 완벽하게 지배했습니다!';
+    } else {
+      titleEl.className = 'end-title-defeat';
+      titleEl.innerText = 'GAME OVER';
+      document.getElementById('end-subtitle').innerText = '블라인드 목표 점수를 달성하지 못했습니다.';
+    }
+
+    document.getElementById('end-ante-text').innerText = `Ante ${this.ante}`;
+    document.getElementById('end-rounds-text').innerText = this.round;
+    document.getElementById('end-best-hand-text').innerText = this.roundScore;
+    document.getElementById('end-jokers-text').innerText = this.jokers.length;
   }
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-  window.game = new SlayTheAbyssGame();
+  window.game = new BalatroGame();
 });
