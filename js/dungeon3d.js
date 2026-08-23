@@ -1,6 +1,6 @@
 /* ==========================================================================
-   ABYSSAL SLAYER 3D: PROCEDURAL 3D DUNGEON ROOM ENGINE
-   3D Floor Mesh, Gothic Walls, Glowing Archways, Torches & Minimap
+   ABYSSAL SLAYER 3D: PROCEDURAL GOTHIC DUNGEON (PS3 DARK FANTASY)
+   PBR Textures, Vaulted Stone Arches, Dynamic Torches & Minimap
    ========================================================================== */
 
 class DungeonFloor3D {
@@ -33,8 +33,8 @@ class DungeonFloor3D {
     layout.forEach(r => {
       this.rooms.push({
         ...r,
-        width: 38,
-        height: 28,
+        width: 40,
+        height: 30,
         doors: this.calculateDoors(r, layout),
         enemiesSpawned: false
       });
@@ -80,21 +80,25 @@ class DungeonFloor3D {
     const w = room.width;
     const h = room.height;
 
-    // 1. Floor Plane (3D Checker Stone)
+    // 1. High-Res Gothic Floor Plane
     const floorGeo = new THREE.PlaneGeometry(w, h, 16, 12);
     floorGeo.rotateX(-Math.PI / 2);
     const floorMat = new THREE.MeshStandardMaterial({
-      color: 0x0f172a,
-      roughness: 0.6,
-      metalness: 0.3
+      map: TextureFactory.createGothicFloorTexture(),
+      roughness: 0.5,
+      metalness: 0.35
     });
     const floor = new THREE.Mesh(floorGeo, floorMat);
     floor.receiveShadow = true;
     this.room3DGroup.add(floor);
 
-    // 2. Perimeter Walls
-    const wallMat = new THREE.MeshStandardMaterial({ color: 0x020617, roughness: 0.8, metalness: 0.4 });
-    const wallH = 4.0;
+    // 2. High Perimeter Gothic Walls
+    const wallMat = new THREE.MeshStandardMaterial({
+      map: TextureFactory.createMetalTexture('#0b0f19'),
+      roughness: 0.8,
+      metalness: 0.3
+    });
+    const wallH = 4.5;
     const wallThick = 1.5;
 
     // North Wall
@@ -125,12 +129,12 @@ class DungeonFloor3D {
     wallE.receiveShadow = true;
     this.room3DGroup.add(wallE);
 
-    // 3. 4 Corner Pillars
+    // 3. Vaulted Gothic Pillars
     const cornerOffsets = [
-      { x: -w / 2 + 2, z: -h / 2 + 2 },
-      { x: w / 2 - 2, z: -h / 2 + 2 },
-      { x: -w / 2 + 2, z: h / 2 - 2 },
-      { x: w / 2 - 2, z: h / 2 - 2 }
+      { x: -w / 2 + 2.5, z: -h / 2 + 2.5 },
+      { x: w / 2 - 2.5, z: -h / 2 + 2.5 },
+      { x: -w / 2 + 2.5, z: h / 2 - 2.5 },
+      { x: w / 2 - 2.5, z: h / 2 - 2.5 }
     ];
     cornerOffsets.forEach(pos => {
       const pillar = ModelFactory3D.createPillarMesh();
@@ -138,12 +142,12 @@ class DungeonFloor3D {
       this.room3DGroup.add(pillar);
     });
 
-    // 4. Torch Braziers
+    // 4. Heavy Torch Braziers
     const torchPositions = [
-      { x: -w / 2 + 1.2, z: 0 },
-      { x: w / 2 - 1.2, z: 0 },
-      { x: 0, z: -h / 2 + 1.2 },
-      { x: 0, z: h / 2 - 1.2 }
+      { x: -w / 2 + 1.4, z: 0 },
+      { x: w / 2 - 1.4, z: 0 },
+      { x: 0, z: -h / 2 + 1.4 },
+      { x: 0, z: h / 2 - 1.4 }
     ];
     torchPositions.forEach(pos => {
       const torch = ModelFactory3D.createTorchBrazier();
@@ -152,22 +156,26 @@ class DungeonFloor3D {
       this.torches.push(torch);
     });
 
-    // 5. Archway Doors
+    // 5. Runic Archway Doors
     room.doors.forEach(dir => {
       const gateGroup = new THREE.Group();
-      const archMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.8 });
-      const arch = new THREE.Mesh(new THREE.BoxGeometry(3.6, 3.2, 0.6), archMat);
-      arch.position.y = 1.6;
+      const archMat = new THREE.MeshStandardMaterial({
+        map: TextureFactory.createMetalTexture('#1e293b'),
+        metalness: 0.85,
+        roughness: 0.2
+      });
+      const arch = new THREE.Mesh(new THREE.BoxGeometry(4.0, 3.6, 0.8), archMat);
+      arch.position.y = 1.8;
       gateGroup.add(arch);
 
       const barrierMat = new THREE.MeshBasicMaterial({
         color: room.cleared ? 0x38bdf8 : 0xe11d48,
         transparent: true,
-        opacity: 0.65,
+        opacity: 0.7,
         side: THREE.DoubleSide
       });
-      const barrier = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 2.8), barrierMat);
-      barrier.position.y = 1.4;
+      const barrier = new THREE.Mesh(new THREE.PlaneGeometry(2.8, 3.2), barrierMat);
+      barrier.position.y = 1.6;
       gateGroup.add(barrier);
 
       if (dir === 'north') {
@@ -208,14 +216,12 @@ class DungeonFloor3D {
   }
 
   update(dt, player3D, enemies) {
-    // Animate Torches
     this.torches.forEach(t => {
       if (t.userData.light) {
-        t.userData.light.intensity = 1.8 + Math.sin(Date.now() * 0.01) * 0.35;
+        t.userData.light.intensity = 2.2 + Math.sin(Date.now() * 0.012) * 0.45;
       }
     });
 
-    // Check Room Clear
     if (!this.currentRoom.cleared) {
       if (this.currentRoom.enemiesSpawned && enemies.length === 0) {
         this.currentRoom.cleared = true;

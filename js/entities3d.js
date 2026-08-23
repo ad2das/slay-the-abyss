@@ -1,6 +1,6 @@
 /* ==========================================================================
-   ABYSSAL SLAYER 3D: THREE.JS 3D COMBAT ENTITIES & BOSS ARCHON
-   3D Player, Weapon Swing Animation, 3D Enemy AI, Boss Patterns & Projectiles
+   ABYSSAL SLAYER 3D: THREE.JS 3D COMBAT ENTITIES & BOSS ARCHON (ANIMATED)
+   Dynamic Cape Physics, Flapping Demon Wings, Orbiting Runes & 3D Projectiles
    ========================================================================== */
 
 class Player3D {
@@ -35,7 +35,7 @@ class Player3D {
     this.z = 0;
     this.vx = 0;
     this.vz = 0;
-    this.radius = 0.8;
+    this.radius = 0.85;
     this.aimAngle = 0;
 
     // Dash
@@ -143,7 +143,7 @@ class Player3D {
 
   basicAttack(enemies) {
     if (this.attackCd > 0) return;
-    this.attackCd = 0.24;
+    this.attackCd = 0.22;
     this.swingTimer = 0.2;
     this.comboStep = (this.comboStep + 1) % 3;
 
@@ -167,7 +167,6 @@ class Player3D {
           const dmg = Math.round(this.baseAtk * (isCrit ? this.critMult : 1.0) * (this.berserkTimer > 0 ? 1.8 : 1.0));
           e.takeDamage(dmg, isCrit, this);
 
-          // 3D Knockback
           e.x += Math.cos(this.aimAngle) * 0.6;
           e.z += Math.sin(this.aimAngle) * 0.6;
 
@@ -334,7 +333,6 @@ class Player3D {
     this.x += this.vx * dt;
     this.z += this.vz * dt;
 
-    // Room boundaries
     const halfW = room.width / 2 - 1.5;
     const halfH = room.height / 2 - 1.5;
     this.x = Math.max(-halfW, Math.min(halfW, this.x));
@@ -344,9 +342,25 @@ class Player3D {
     this.mesh.position.set(this.x, 0, this.z);
     this.mesh.rotation.y = -this.aimAngle + Math.PI / 2;
 
+    // Cape Cloth Animation
+    if (this.mesh.userData.cape) {
+      const speedMag = Math.hypot(this.vx, this.vz);
+      this.mesh.userData.cape.rotation.x = 0.35 + (speedMag > 0.1 ? 0.3 : 0.05) + Math.sin(Date.now() * 0.015) * 0.08;
+    }
+
+    // Orb Rotation
+    if (this.mesh.userData.orb) {
+      this.mesh.userData.orb.rotation.y += dt * 3.0;
+    }
+
     // Weapon Swing animation
     if (this.mesh.userData.weapon) {
       this.mesh.userData.weapon.rotation.x = this.swingTimer > 0 ? Math.PI / 1.5 : Math.PI / 4;
+    }
+    if (this.mesh.userData.weaponL && this.mesh.userData.weaponR) {
+      const ang = this.swingTimer > 0 ? Math.PI / 1.6 : Math.PI / 3;
+      this.mesh.userData.weaponL.rotation.x = ang;
+      this.mesh.userData.weaponR.rotation.x = ang;
     }
   }
 }
@@ -549,8 +563,17 @@ class AbaddonBoss3D {
     this.z += Math.sin(angle) * (this.phase === 3 ? 3.2 : 1.8) * dt;
     this.mesh.position.set(this.x, 0, this.z);
 
-    if (this.mesh.userData.stones) {
-      this.mesh.userData.stones.rotation.y += dt * 2.5;
+    // Flapping Wings Animation
+    if (this.mesh.userData.wings) {
+      const flap = Math.sin(Date.now() * 0.006) * 0.3;
+      this.mesh.userData.wings.children.forEach((w, idx) => {
+        w.rotation.y = (idx % 2 === 0 ? 1 : -1) * flap;
+      });
+    }
+
+    // Orbiting Swords Animation
+    if (this.mesh.userData.swordRing) {
+      this.mesh.userData.swordRing.rotation.y += dt * 2.0;
     }
 
     if (this.attackTimer > (this.phase === 3 ? 1.4 : 2.4)) {
