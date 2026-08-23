@@ -1,94 +1,48 @@
 /* ==========================================================================
-   HARVEST MOON: MINERAL MEADOW - DEFINITIVE MASTER GAME ENGINE
-   Multi-Zones, Tool Charging, Kitchen Cooking, Mineral Mining, NPCs, Animals & Touch Pad
+   ABYSSAL SLAYER: MASTER GAME ENGINE
+   Game State Machine, Input, Collisions, Boons, Meta-Progression & Loop
    ========================================================================== */
 
-class HarvestMoonGame {
+class AbyssalGameEngine {
   constructor() {
     this.canvas = document.getElementById('gameCanvas');
     this.ctx = this.canvas.getContext('2d');
-    this.map = new WorldMap();
+    this.minimapCanvas = document.getElementById('minimapCanvas');
 
-    // Player State
-    this.player = {
-      x: 180,
-      y: 130,
-      dir: 'down',
-      speed: 2.3,
-      isMoving: false,
-      walkFrame: 0,
-      stamina: 100,
-      maxStamina: 100,
-      heldItem: null,
-      isRidingHorse: false,
-      chargeTimer: 0,
-      isCharging: false
+    this.state = 'TITLE'; // TITLE, SANCTUARY, PLAYING, BOON_PICK, SHOP, END
+    this.selectedClass = 'shadow_blade';
+    this.talents = {};
+    this.bankedSouls = 0;
+
+    this.dungeon = null;
+    this.player = null;
+    this.enemies = [];
+    this.projectiles = [];
+    this.camera = { x: 0, y: 0 };
+    this.mouse = { x: 0, y: 0, isDown: false };
+    this.keys = {};
+
+    this.rerollCount = 1;
+    this.runStartTime = 0;
+
+    // Mobile Virtual Joystick State
+    this.touchJoystick = {
+      active: false,
+      startX: 0,
+      startY: 0,
+      curX: 0,
+      curY: 0,
+      dx: 0,
+      dy: 0
     };
 
-    this.camera = { x: 0, y: 0 };
-
-    // Calendar & Clock
-    this.gold = 600;
-    this.day = 1;
-    this.dayNames = ['월', '화', '수', '목', '금', '토', '일'];
-    this.seasons = ['봄 (Spring)', '여름 (Summer)', '가을 (Autumn)', '겨울 (Winter)'];
-    this.seasonIdx = 0;
-    this.timeMinutes = 360; // 6:00 AM
-    this.weather = '☀️ 맑음';
-    this.zackShippedToday = false;
-
-    // Upgradable Tools
-    this.tools = [
-      { id: 'hoe', name: '호미 (Hoe)', level: 1, icon: '🚜', sub: '밭을 일굽니다 [B] (차지 시 1x3)' },
-      { id: 'can', name: '물뿌리개 (Can)', level: 1, icon: '💧', sub: '작물에 물주기 [B] (차지 시 1x3)', water: 30, maxWater: 30 },
-      { id: 'sickle', name: '낫 (Sickle)', level: 1, icon: '🌾', sub: '잡초를 베어냅니다 [B]' },
-      { id: 'axe', name: '도끼 (Axe)', level: 1, icon: '🪓', sub: '나뭇가지를 벱니다 [B]' },
-      { id: 'hammer', name: '망치 (Hammer)', level: 1, icon: '🔨', sub: '바위/광석을 부숩니다 [B]' },
-      { id: 'seed_turnip', name: '순무 씨앗', icon: '🌱', sub: '밭에 파종합니다 [B]', isSeed: true, cropId: 'turnip', count: 8 },
-      { id: 'seed_straw', name: '딸기 씨앗', icon: '🌱', sub: '밭에 파종합니다 [B]', isSeed: true, cropId: 'strawberry', count: 6 },
-      { id: 'seed_corn', name: '옥수수 씨앗', icon: '🌱', sub: '밭에 파종합니다 [B]', isSeed: true, cropId: 'corn', count: 4 },
-      { id: 'seed_pumpkin', name: '호박 씨앗', icon: '🌱', sub: '밭에 파종합니다 [B]', isSeed: true, cropId: 'pumpkin', count: 4 },
-      { id: 'brush', name: '브러시 (Brush)', icon: '🪮', sub: '가축을 빗겨줍니다 [B]' },
-      { id: 'milker', name: '착유기 (Milker)', icon: '🥛', sub: '소에게서 우유를 짭니다 [B]' },
-      { id: 'clippers', name: '가위 (Clippers)', icon: '✂️', sub: '양에게서 양모를 깎습니다 [B]' },
-      { id: 'rod', name: '낚싯대 (Rod)', icon: '🎣', sub: '강에서 낚시를 합니다 [B]' }
-    ];
-    this.equippedToolIdx = 0;
-
-    // Rucksack
-    this.rucksack = [
-      { id: 'turnip_crop', name: '신선한 순무', icon: '🥬', count: 4, sellPrice: 60 },
-      { id: 'straw_crop', name: '달콤한 딸기', icon: '🍓', count: 2, sellPrice: 120 }
-    ];
-
-    this.shippingBinItems = [];
-    this.keys = {};
-    this.dialogActive = false;
-    this.selectedRucksackIdx = 0;
-
-    // Animals Pool
-    this.map.animals = [
-      { id: 'horse', type: 'horse', name: '달님이 (Horse)', icon: '🐴', x: 260, y: 580, hearts: 4 },
-      { id: 'dog', type: 'dog', name: '바둑이 (Dog)', icon: '🐕', x: 280, y: 160, hearts: 3 },
-      { id: 'chick1', type: 'chicken', name: '꼬꼬 1호', icon: '🐔', x: 140, y: 480, hearts: 2, hasEgg: true },
-      { id: 'chick2', type: 'chicken', name: '꼬꼬 2호', icon: '🐔', x: 180, y: 500, hearts: 1, hasEgg: true },
-      { id: 'cow1', type: 'cow', name: '얼룩소 한우', icon: '🐮', x: 160, y: 640, hearts: 4, hasMilk: true },
-      { id: 'sheep1', type: 'sheep', name: '폭신이', icon: '🐑', x: 200, y: 660, hearts: 3, hasWool: true }
-    ];
-
-    this.loadGame();
+    this.loadSave();
     this.initCanvas();
     this.setupInputs();
     this.setupUI();
+
+    window.gameInstance = this;
     this.startLoop();
-
-    setInterval(() => this.saveGame(), 30000);
-
-    setTimeout(() => {
-      this.showDialog('촌장 토마스', '👨‍🌾', '자네가 새로 온 목장주인가? 미네랄 계곡에 온 것을 진심으로 환영하네! 집안의 주방(Kitchen)과 TV, 광산과 온천을 자유롭게 이용해보게나! (말에 타려면 A버튼)', 3);
-      window.hmAudio.playSFX('rooster');
-      window.hmAudio.startSpringBGM();
-    }, 400);
   }
 
   initCanvas() {
@@ -101,897 +55,614 @@ class HarvestMoonGame {
     this.canvas.height = window.innerHeight;
   }
 
-  setupInputs() {
-    window.addEventListener('keydown', (e) => {
-      this.keys[e.code] = true;
-      if (e.code === 'Space' || e.code === 'KeyZ') this.handleActionA();
-      if (e.code === 'KeyX') this.startChargingTool();
-      if (e.code === 'KeyC') this.handleActionY();
-      if (e.code === 'Tab' || e.code === 'KeyI') {
-        e.preventDefault();
-        this.openRucksack();
+  loadSave() {
+    try {
+      const raw = localStorage.getItem('abyssal_slayer_save');
+      if (raw) {
+        const data = JSON.parse(raw);
+        this.bankedSouls = data.bankedSouls || 0;
+        this.talents = data.talents || {};
       }
-    });
-
-    window.addEventListener('keyup', (e) => {
-      this.keys[e.code] = false;
-      if (e.code === 'KeyX') this.releaseChargedTool();
-    });
-
-    const dpadMap = {
-      'btn-dpad-up': 'up',
-      'btn-dpad-down': 'down',
-      'btn-dpad-left': 'left',
-      'btn-dpad-right': 'right'
-    };
-
-    Object.entries(dpadMap).forEach(([btnId, dir]) => {
-      const btn = document.getElementById(btnId);
-      if (!btn) return;
-      const start = (e) => { e.preventDefault(); this.keys['dpad_' + dir] = true; };
-      const stop = (e) => { e.preventDefault(); this.keys['dpad_' + dir] = false; };
-      btn.addEventListener('touchstart', start);
-      btn.addEventListener('touchend', stop);
-      btn.addEventListener('mousedown', start);
-      btn.addEventListener('mouseup', stop);
-    });
-
-    const btnA = document.getElementById('btn-act-a');
-    if (btnA) btnA.addEventListener('click', () => this.handleActionA());
-    
-    const btnB = document.getElementById('btn-act-b');
-    if (btnB) {
-      btnB.addEventListener('touchstart', (e) => { e.preventDefault(); this.startChargingTool(); });
-      btnB.addEventListener('touchend', (e) => { e.preventDefault(); this.releaseChargedTool(); });
-      btnB.addEventListener('mousedown', (e) => { e.preventDefault(); this.startChargingTool(); });
-      btnB.addEventListener('mouseup', (e) => { e.preventDefault(); this.releaseChargedTool(); });
-    }
-
-    const btnX = document.getElementById('btn-act-x');
-    if (btnX) btnX.addEventListener('click', () => this.openRucksack());
-
-    const btnY = document.getElementById('btn-act-y');
-    if (btnY) btnY.addEventListener('click', () => this.handleActionY());
-  }
-
-  setupUI() {
-    document.querySelectorAll('.btn-close-hm').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const modalId = btn.dataset.modal;
-        if (modalId) {
-          const m = document.getElementById(modalId);
-          if (m) m.classList.add('hidden');
-        }
-      });
-    });
-
-    const diag = document.getElementById('dialog-box');
-    if (diag) diag.addEventListener('click', () => this.closeDialog());
-
-    const btnEat = document.getElementById('btn-eat-item');
-    if (btnEat) {
-      btnEat.addEventListener('click', () => {
-        const item = this.rucksack[this.selectedRucksackIdx];
-        if (item && item.isFood) {
-          this.player.stamina = Math.min(this.player.maxStamina, this.player.stamina + item.staminaRestore);
-          item.count--;
-          if (item.count <= 0) this.rucksack.splice(this.selectedRucksackIdx, 1);
-          window.hmAudio.playSFX('harvest_pop');
-          this.showToast('😋 맛있게 먹었습니다! (체력 회복)');
-          this.openRucksack();
-          this.updateHUD();
-        } else {
-          this.showToast('요리된 음식만 먹을 수 있습니다!');
-        }
-      });
-    }
-
-    const btnEquip = document.getElementById('btn-equip-item');
-    if (btnEquip) {
-      btnEquip.addEventListener('click', () => {
-        const item = this.rucksack[this.selectedRucksackIdx];
-        if (item) {
-          this.player.heldItem = { ...item, count: 1 };
-          item.count--;
-          if (item.count <= 0) this.rucksack.splice(this.selectedRucksackIdx, 1);
-          document.getElementById('modal-rucksack').classList.add('hidden');
-          this.showToast(this.player.heldItem.name + '을(를) 머리 위로 들었습니다!');
-          this.updateHUD();
-        }
-      });
-    }
-
-    const btnShipClose = document.getElementById('btn-close-shipping');
-    if (btnShipClose) {
-      btnShipClose.addEventListener('click', () => {
-        document.getElementById('modal-shipping').classList.add('hidden');
-      });
-    }
-
-    this.updateHUD();
-  }
-
-  startChargingTool() {
-    this.player.isCharging = true;
-    this.player.chargeTimer = 0;
-  }
-
-  releaseChargedTool() {
-    if (!this.player.isCharging) return;
-    this.player.isCharging = false;
-    const chargeLvl = this.player.chargeTimer > 1.2 ? 2 : (this.player.chargeTimer > 0.6 ? 1 : 0);
-    this.executeToolAction(chargeLvl);
-    this.player.chargeTimer = 0;
-  }
-
-  handleActionA() {
-    if (this.dialogActive) {
-      this.closeDialog();
-      return;
-    }
-
-    const frontTilePos = this.getFrontTile();
-    const tile = this.map.getTile(frontTilePos.tx, frontTilePos.ty);
-    const cropKey = frontTilePos.tx + ',' + frontTilePos.ty;
-    const crop = this.map.crops[cropKey];
-
-    if (this.player.isRidingHorse) {
-      this.player.isRidingHorse = false;
-      this.player.speed = 2.3;
-      const horse = this.map.animals.find(a => a.type === 'horse');
-      if (horse) { horse.x = this.player.x + 20; horse.y = this.player.y; }
-      this.showToast('🐴 말에서 내렸습니다.');
-      return;
-    }
-
-    if (this.map.currentZone === 'farm') {
-      const horse = this.map.animals.find(a => a.type === 'horse');
-      if (horse && Math.hypot(horse.x - this.player.x, horse.y - this.player.y) < 40) {
-        this.player.isRidingHorse = true;
-        this.player.speed = 4.4;
-        horse.x = -999;
-        window.hmAudio.playSFX('rooster');
-        this.showToast('🐴 말에 탑승했습니다! (고속 이동)');
-        return;
-      }
-    }
-
-    if (this.player.heldItem) {
-      if (tile === TILE_SHIPPING_BIN) {
-        this.shippingBinItems.push({ ...this.player.heldItem });
-        window.hmAudio.playSFX('ship_item');
-        this.showToast('📦 ' + this.player.heldItem.name + '을(를) 출하 상자에 넣었습니다!');
-        this.player.heldItem = null;
-        this.updateHUD();
-        return;
-      } else {
-        this.addItemToRucksack(this.player.heldItem);
-        this.player.heldItem = null;
-        this.updateHUD();
-        return;
-      }
-    }
-
-    if (crop && crop.stage === 3) {
-      window.hmAudio.playSFX('harvest_pop');
-      this.player.heldItem = { id: crop.id, name: crop.name, icon: crop.icon, sellPrice: crop.sellPrice, count: 1 };
-      delete this.map.crops[cropKey];
-      this.showToast('✨ ' + this.player.heldItem.name + ' 수확! (출하 상자로 운반하세요)');
-      this.updateHUD();
-      return;
-    }
-
-    if (tile === TILE_HOUSE_DOOR) {
-      this.warpToZone('house', 5 * 32, 7 * 32);
-      return;
-    } else if (tile === TILE_COOP_DOOR) {
-      this.warpToZone('coop', 5 * 32, 7 * 32);
-      return;
-    } else if (tile === TILE_BARN_DOOR) {
-      this.warpToZone('barn', 6 * 32, 8 * 32);
-      return;
-    } else if (tile === TILE_MINE_ENTRANCE) {
-      this.warpToZone('mine', 2 * 32, 2 * 32);
-      return;
-    } else if (tile === TILE_TOWN_ROAD) {
-      this.warpToZone('town', 2 * 32, 8 * 32);
-      return;
-    } else if (tile === TILE_EXIT_DOOR) {
-      this.warpToZone('farm', 5 * 32, 5 * 32);
-      return;
-    }
-
-    if (tile === TILE_BED) {
-      this.showDialog('내 침실 (Farmhouse Bed)', '🛏️', '잠자리에 들고 하루를 마감하시겠습니까?', 5);
-      setTimeout(() => this.advanceDay(), 1400);
-      return;
-    } else if (tile === TILE_TV) {
-      document.getElementById('modal-tv').classList.remove('hidden');
-      return;
-    } else if (tile === TILE_KITCHEN) {
-      document.getElementById('modal-kitchen').classList.remove('hidden');
-      CookingManager.populateKitchenUI(document.getElementById('recipes-container'), this);
-      return;
-    }
-
-    if (tile === TILE_SHOP_COUNTER) {
-      this.openShop();
-      return;
-    } else if (tile === TILE_BLACKSMITH_ANVIL) {
-      this.openBlacksmith();
-      return;
-    }
-
-    if (tile === TILE_MINE_LADDER) {
-      this.map.mineFloor++;
-      this.map.initAllZones();
-      this.warpToZone('mine', 2 * 32, 2 * 32);
-      this.showToast('⛏️ 광산 지하 ' + this.map.mineFloor + '층에 진입했습니다!');
-      return;
-    }
-
-    for (const a of this.map.animals) {
-      if (Math.hypot(a.x - this.player.x, a.y - this.player.y) < 36) {
-        if (a.type === 'chicken' && a.hasEgg) {
-          a.hasEgg = false;
-          a.hearts = Math.min(5, a.hearts + 1);
-          window.hmAudio.playSFX('harvest_pop');
-          this.player.heldItem = { id: 'fresh_egg', name: '신선한 달걀', icon: '🥚', sellPrice: 50, count: 1 };
-          this.showToast('🥚 신선한 달걀을 수집했습니다!');
-          this.updateHUD();
-          return;
-        } else {
-          a.hearts = Math.min(5, a.hearts + 1);
-          if (a.type === 'cow') window.hmAudio.playSFX('cow_moo');
-          else window.hmAudio.playSFX('rooster');
-          this.showToast('❤️ ' + a.name + '이(가) 행복해합니다!');
-          return;
-        }
-      }
-    }
-
-    if (tile === TILE_WEED || tile === TILE_BRANCH || tile === TILE_ROCK) {
-      const names = { [TILE_WEED]: '잡초', [TILE_BRANCH]: '나뭇가지', [TILE_ROCK]: '돌맹이' };
-      const icons = { [TILE_WEED]: '🌿', [TILE_BRANCH]: '🪵', [TILE_ROCK]: '🪨' };
-      this.player.heldItem = { id: 'forage', name: names[tile], icon: icons[tile], sellPrice: 15, count: 1 };
-      this.map.setTile(frontTilePos.tx, frontTilePos.ty, TILE_GRASS);
-      window.hmAudio.playSFX('harvest_pop');
-      this.showToast(names[tile] + '을(를) 주웠습니다!');
-      this.updateHUD();
-      return;
-    }
-  }
-
-  warpToZone(zoneName, targetX, targetY) {
-    this.map.currentZone = zoneName;
-    this.player.x = targetX;
-    this.player.y = targetY;
-    this.showToast('📍 ' + this.map.getCurZone().name + ' 진입');
-    this.updateHUD();
-  }
-
-  executeToolAction(chargeLvl = 0) {
-    if (this.player.stamina <= 0) {
-      this.showToast('체력이 고갈되었습니다! 온천에서 피로를 풀어주세요 💦');
-      return;
-    }
-
-    const tool = this.tools[this.equippedToolIdx];
-    if (!tool) return;
-
-    const frontTilePos = this.getFrontTile();
-    const tile = this.map.getTile(frontTilePos.tx, frontTilePos.ty);
-    const cropKey = frontTilePos.tx + ',' + frontTilePos.ty;
-
-    const targetTiles = [frontTilePos];
-    if (chargeLvl >= 1) {
-      targetTiles.push({ tx: frontTilePos.tx - 1, ty: frontTilePos.ty });
-      targetTiles.push({ tx: frontTilePos.tx + 1, ty: frontTilePos.ty });
-    }
-    if (chargeLvl >= 2) {
-      targetTiles.push({ tx: frontTilePos.tx - 1, ty: frontTilePos.ty - 1 });
-      targetTiles.push({ tx: frontTilePos.tx, ty: frontTilePos.ty - 1 });
-      targetTiles.push({ tx: frontTilePos.tx + 1, ty: frontTilePos.ty - 1 });
-      targetTiles.push({ tx: frontTilePos.tx - 1, ty: frontTilePos.ty + 1 });
-      targetTiles.push({ tx: frontTilePos.tx, ty: frontTilePos.ty + 1 });
-      targetTiles.push({ tx: frontTilePos.tx + 1, ty: frontTilePos.ty + 1 });
-    }
-
-    if (tool.id === 'hoe') {
-      targetTiles.forEach(t => {
-        const curT = this.map.getTile(t.tx, t.ty);
-        if (curT === TILE_GRASS || curT === TILE_DIRT_PATH) {
-          this.map.setTile(t.tx, t.ty, TILE_SOIL_DRY);
-        }
-      });
-      this.player.stamina = Math.max(0, this.player.stamina - (2 + chargeLvl));
-      window.hmAudio.playSFX('hoe_dig');
-      this.updateHUD();
-    }
-    else if (tool.id === 'can') {
-      if (tile === TILE_WATER || tile === TILE_WELL) {
-        tool.water = tool.maxWater;
-        window.hmAudio.playSFX('water_pour');
-        this.showToast('💧 물뿌리개를 가득 채웠습니다!');
-        this.updateHUD();
-        return;
-      }
-      targetTiles.forEach(t => {
-        const curT = this.map.getTile(t.tx, t.ty);
-        if (tool.water > 0 && (curT === TILE_SOIL_DRY || curT === TILE_SOIL_WATERED)) {
-          tool.water--;
-          this.map.setTile(t.tx, t.ty, TILE_SOIL_WATERED);
-        }
-      });
-      this.player.stamina = Math.max(0, this.player.stamina - (1 + chargeLvl));
-      window.hmAudio.playSFX('water_pour');
-      this.updateHUD();
-    }
-    else if (tool.isSeed && tool.count > 0) {
-      if ((tile === TILE_SOIL_DRY || tile === TILE_SOIL_WATERED) && !this.map.crops[cropKey]) {
-        tool.count--;
-        const cropConfigs = {
-          turnip: { name: '순무', icon: '🥬', maxDays: 4, price: 60 },
-          strawberry: { name: '딸기', icon: '🍓', maxDays: 6, price: 120 },
-          corn: { name: '옥수수', icon: '🌽', maxDays: 5, price: 160 },
-          pumpkin: { name: '호박', icon: '🎃', maxDays: 6, price: 280 }
-        };
-        const cfg = cropConfigs[tool.cropId] || cropConfigs.turnip;
-        this.map.crops[cropKey] = {
-          id: tool.cropId,
-          name: cfg.name,
-          icon: cfg.icon,
-          stage: 0,
-          maxDays: cfg.maxDays,
-          daysGrown: 0,
-          watered: tile === TILE_SOIL_WATERED,
-          sellPrice: cfg.price
-        };
-        window.hmAudio.playSFX('harvest_pop');
-        this.showToast(tool.name + ' 파종 완료 🌱');
-        this.updateHUD();
-      }
-    }
-    else if (tool.id === 'milker') {
-      for (const a of this.map.animals) {
-        if (a.type === 'cow' && a.hasMilk && Math.hypot(a.x - this.player.x, a.y - this.player.y) < 40) {
-          a.hasMilk = false;
-          window.hmAudio.playSFX('cow_moo');
-          this.player.heldItem = { id: 'milk', name: '신선한 목장 우유 (L)', icon: '🥛', sellPrice: 160, count: 1 };
-          this.showToast('🥛 신선한 우유를 짰습니다!');
-          this.updateHUD();
-          return;
-        }
-      }
-    }
-    else if (tool.id === 'clippers') {
-      for (const a of this.map.animals) {
-        if (a.type === 'sheep' && a.hasWool && Math.hypot(a.x - this.player.x, a.y - this.player.y) < 40) {
-          a.hasWool = false;
-          window.hmAudio.playSFX('harvest_pop');
-          this.player.heldItem = { id: 'wool', name: '최고급 양모', icon: '🧶', sellPrice: 240, count: 1 };
-          this.showToast('🧶 부드러운 양모를 깎았습니다!');
-          this.updateHUD();
-          return;
-        }
-      }
-    }
-    else if (tool.id === 'hammer') {
-      if (tile === TILE_ROCK || tile === TILE_MINE_ROCK) {
-        const isMine = tile === TILE_MINE_ROCK;
-        this.map.setTile(frontTilePos.tx, frontTilePos.ty, isMine ? TILE_DIRT_PATH : TILE_GRASS);
-        const ores = [
-          { id: 'copper_ore', name: '구리 광석', icon: '🪨', price: 60 },
-          { id: 'silver_ore', name: '은 광석', icon: '🥈', price: 100 },
-          { id: 'gold_ore', name: '금 광석', icon: '🥇', price: 180 },
-          { id: 'diamond_gem', name: '천연 다이아몬드', icon: '💎', price: 400 }
-        ];
-        const roll = Math.random();
-        const ore = roll < 0.15 ? ores[3] : (roll < 0.4 ? ores[2] : (roll < 0.7 ? ores[1] : ores[0]));
-        this.player.heldItem = { id: ore.id, name: ore.name, icon: ore.icon, sellPrice: ore.price, count: 1 };
-        window.hmAudio.playSFX('hoe_dig');
-        this.showToast('⛏️ ' + ore.name + ' 채굴 완료!');
-        this.updateHUD();
-      }
-    }
-    else if (tool.id === 'rod' && tile === TILE_WATER) {
-      this.showToast('🎣 낚싯줄을 드리웠습니다...');
-      setTimeout(() => {
-        window.hmAudio.playSFX('harvest_pop');
-        this.player.heldItem = { id: 'fish_item', name: '은빛 산천어 (Fish)', icon: '🐟', sellPrice: 120, count: 1 };
-        this.showToast('❗ 물고기를 낚아 올렸습니다! 🐟');
-        this.updateHUD();
-      }, 1500);
-    }
-  }
-
-  handleActionY() {
-    this.equippedToolIdx = (this.equippedToolIdx + 1) % this.tools.length;
-    window.hmAudio.playSFX('harvest_pop');
-    this.updateHUD();
-  }
-
-  getFrontTile() {
-    const ts = this.map.getCurZone().tileSize;
-    let tx = Math.floor((this.player.x + 8) / ts);
-    let ty = Math.floor((this.player.y + 8) / ts);
-
-    if (this.player.dir === 'up') ty -= 1;
-    else if (this.player.dir === 'down') ty += 1;
-    else if (this.player.dir === 'left') tx -= 1;
-    else if (this.player.dir === 'right') tx += 1;
-
-    return { tx, ty };
-  }
-
-  openShop() {
-    const modal = document.getElementById('modal-shop');
-    modal.classList.remove('hidden');
-
-    const container = document.getElementById('shop-items-container');
-    container.innerHTML = `
-      <div class="shop-item-row">
-        <div class="shop-item-info">
-          <span class="item-icon">🌱</span>
-          <div>
-            <div class="item-title">순무 씨앗 x3</div>
-            <div class="item-desc">4일 후 수확 (판매가: 60G)</div>
-          </div>
-        </div>
-        <button class="btn-buy-item" id="buy-turnip">120 G</button>
-      </div>
-      <div class="shop-item-row">
-        <div class="shop-item-info">
-          <span class="item-icon">🍓</span>
-          <div>
-            <div class="item-title">딸기 씨앗 x3</div>
-            <div class="item-desc">6일 후 수확 (판매가: 120G)</div>
-          </div>
-        </div>
-        <button class="btn-buy-item" id="buy-straw">180 G</button>
-      </div>
-      <div class="shop-item-row">
-        <div class="shop-item-info">
-          <span class="item-icon">🌽</span>
-          <div>
-            <div class="item-title">옥수수 씨앗 x3</div>
-            <div class="item-desc">5일 후 수확 (판매가: 160G)</div>
-          </div>
-        </div>
-        <button class="btn-buy-item" id="buy-corn">200 G</button>
-      </div>
-    `;
-
-    document.getElementById('buy-turnip').onclick = () => {
-      if (this.gold >= 120) {
-        this.gold -= 120;
-        this.tools.find(t => t.id === 'seed_turnip').count += 3;
-        window.hmAudio.playSFX('coin');
-        this.updateHUD();
-        this.showToast('순무 씨앗 3개 구매 완료!');
-      }
-    };
-    document.getElementById('buy-straw').onclick = () => {
-      if (this.gold >= 180) {
-        this.gold -= 180;
-        this.tools.find(t => t.id === 'seed_straw').count += 3;
-        window.hmAudio.playSFX('coin');
-        this.updateHUD();
-        this.showToast('딸기 씨앗 3개 구매 완료!');
-      }
-    };
-    document.getElementById('buy-corn').onclick = () => {
-      if (this.gold >= 200) {
-        this.gold -= 200;
-        this.tools.find(t => t.id === 'seed_corn').count += 3;
-        window.hmAudio.playSFX('coin');
-        this.updateHUD();
-        this.showToast('옥수수 씨앗 3개 구매 완료!');
-      }
-    };
-  }
-
-  openBlacksmith() {
-    const modal = document.getElementById('modal-blacksmith');
-    modal.classList.remove('hidden');
-
-    const container = document.getElementById('blacksmith-upgrades-container');
-    container.innerHTML = `
-      <div class="upgrade-row">
-        <div class="upgrade-info">
-          <div class="upgrade-icon">🚜</div>
-          <div>
-            <div class="upgrade-title">황동 호미 (Copper Hoe) Lv.2</div>
-            <div class="upgrade-desc">차지 시 전방 1x3칸 동시 개간 (필요: 300G)</div>
-          </div>
-        </div>
-        <button class="btn-upgrade-tool" id="upgrade-hoe">강화하기</button>
-      </div>
-      <div class="upgrade-row">
-        <div class="upgrade-info">
-          <div class="upgrade-icon">💧</div>
-          <div>
-            <div class="upgrade-title">은빛 물뿌리개 (Silver Can) Lv.2</div>
-            <div class="upgrade-desc">차지 시 전방 1x3칸 동시 관수 (필요: 400G)</div>
-          </div>
-        </div>
-        <button class="btn-upgrade-tool" id="upgrade-can">강화하기</button>
-      </div>
-    `;
-
-    document.getElementById('upgrade-hoe').onclick = () => {
-      if (this.gold >= 300) {
-        this.gold -= 300;
-        this.tools.find(t => t.id === 'hoe').level = 2;
-        window.hmAudio.playSFX('coin');
-        this.showToast('⚒️ 호미가 Lv.2로 강화되었습니다!');
-        this.updateHUD();
-      }
-    };
-    document.getElementById('upgrade-can').onclick = () => {
-      if (this.gold >= 400) {
-        this.gold -= 400;
-        this.tools.find(t => t.id === 'can').level = 2;
-        window.hmAudio.playSFX('coin');
-        this.showToast('⚒️ 물뿌리개가 Lv.2로 강화되었습니다!');
-        this.updateHUD();
-      }
-    };
-  }
-
-  openRucksack() {
-    const modal = document.getElementById('modal-rucksack');
-    modal.classList.remove('hidden');
-
-    const container = document.getElementById('rucksack-container');
-    container.innerHTML = '';
-
-    for (let i = 0; i < 8; i++) {
-      const item = this.rucksack[i];
-      const slot = document.createElement('div');
-      slot.className = 'rucksack-slot ' + (this.selectedRucksackIdx === i ? 'selected' : '');
-      if (item) {
-        slot.innerHTML = `
-          <div style="font-size:24px;">${item.icon}</div>
-          <div style="font-size:10px; font-weight:900;">${item.name}</div>
-          <div style="font-size:9px; color:#b45309;">x${item.count}</div>
-        `;
-        slot.onclick = () => {
-          this.selectedRucksackIdx = i;
-          document.querySelectorAll('.rucksack-slot').forEach(s => s.classList.remove('selected'));
-          slot.classList.add('selected');
-          document.getElementById('rucksack-item-desc').innerText = item.name + ' (선택됨)';
-        };
-      }
-      container.appendChild(slot);
-    }
-  }
-
-  addItemToRucksack(item) {
-    const existing = this.rucksack.find(i => i.id === item.id);
-    if (existing) existing.count += (item.count || 1);
-    else this.rucksack.push({ ...item, count: item.count || 1 });
-  }
-
-  advanceDay() {
-    let revenue = 0;
-    const list = document.getElementById('shipping-list-container');
-    list.innerHTML = '';
-
-    if (this.shippingBinItems.length > 0) {
-      this.shippingBinItems.forEach(i => {
-        const itemRev = i.sellPrice * (i.count || 1);
-        revenue += itemRev;
-        const row = document.createElement('div');
-        row.style.display = 'flex';
-        row.style.justifyContent = 'space-between';
-        row.style.margin = '4px 0';
-        row.innerHTML = '<span>' + i.icon + ' ' + i.name + '</span><strong>+' + itemRev + ' G</strong>';
-        list.appendChild(row);
-      });
-      this.gold += revenue;
-      this.shippingBinItems = [];
-      document.getElementById('shipping-total-gold').innerText = '+' + revenue + ' G';
-      document.getElementById('modal-shipping').classList.remove('hidden');
-    }
-
-    this.day++;
-    if (this.day > 30) {
-      this.day = 1;
-      this.seasonIdx = (this.seasonIdx + 1) % this.seasons.length;
-    }
-
-    this.timeMinutes = 360;
-    this.player.stamina = this.player.maxStamina;
-    this.warpToZone('farm', 180, 130);
-    this.player.isRidingHorse = false;
-    this.player.speed = 2.3;
-
-    const horse = this.map.animals.find(a => a.type === 'horse');
-    if (horse) { horse.x = 260; horse.y = 580; }
-
-    this.map.animals.forEach(a => {
-      if (a.type === 'chicken') a.hasEgg = true;
-      if (a.type === 'cow') a.hasMilk = true;
-      if (a.type === 'sheep') a.hasWool = true;
-    });
-
-    this.map.advanceDay(this);
-    this.saveGame();
-
-    window.hmAudio.playSFX('rooster');
-    this.updateHUD();
-    this.showToast('🌅 제 ' + this.day + '일차의 아침이 밝았습니다!');
-  }
-
-  showDialog(speaker, portrait, text, hearts = 3) {
-    this.dialogActive = true;
-    const box = document.getElementById('dialog-box');
-    document.getElementById('dialog-speaker').innerText = speaker;
-    document.getElementById('dialog-portrait').innerText = portrait;
-    document.getElementById('dialog-text').innerText = text;
-    document.getElementById('dialog-hearts').innerText = '❤️'.repeat(hearts) + '🤍'.repeat(5 - hearts);
-    box.classList.remove('dialog-hidden');
-  }
-
-  closeDialog() {
-    this.dialogActive = false;
-    document.getElementById('dialog-box').classList.add('dialog-hidden');
-  }
-
-  showToast(msg) {
-    const toast = document.getElementById('hm-toast');
-    toast.innerText = msg;
-    toast.classList.remove('toast-hidden');
-    setTimeout(() => toast.classList.add('toast-hidden'), 2200);
+    } catch(e) {}
   }
 
   saveGame() {
     try {
       const data = {
-        gold: this.gold,
-        day: this.day,
-        seasonIdx: this.seasonIdx,
-        rucksack: this.rucksack,
-        crops: this.map.crops
+        bankedSouls: this.bankedSouls,
+        talents: this.talents
       };
-      localStorage.setItem('hm_master_save', JSON.stringify(data));
+      localStorage.setItem('abyssal_slayer_save', JSON.stringify(data));
     } catch(e) {}
   }
 
-  loadGame() {
-    try {
-      const raw = localStorage.getItem('hm_master_save');
-      if (raw) {
-        const data = JSON.parse(raw);
-        if (data.gold) this.gold = data.gold;
-        if (data.day) this.day = data.day;
-        if (data.seasonIdx) this.seasonIdx = data.seasonIdx;
-        if (data.rucksack) this.rucksack = data.rucksack;
-        if (data.crops) this.map.crops = data.crops;
+  setupInputs() {
+    window.addEventListener('keydown', (e) => {
+      this.keys[e.code] = true;
+      if (this.state === 'PLAYING') {
+        if (e.code === 'Space' || e.code === 'KeyX') {
+          let mx = 0, my = 0;
+          if (this.keys['KeyW'] || this.keys['ArrowUp']) my -= 1;
+          if (this.keys['KeyS'] || this.keys['ArrowDown']) my += 1;
+          if (this.keys['KeyA'] || this.keys['ArrowLeft']) mx -= 1;
+          if (this.keys['KeyD'] || this.keys['ArrowRight']) mx += 1;
+          this.player.dash(mx, my);
+        }
+        if (e.code === 'KeyQ' || e.code === 'KeyC') this.player.castSkill1(this.projectiles);
+        if (e.code === 'KeyE' || e.code === 'KeyV') this.player.castSkill2(this.projectiles);
+        if (e.code === 'KeyR' || e.code === 'KeyF') this.player.castUlt(this.projectiles);
       }
-    } catch(e) {}
+    });
+
+    window.addEventListener('keyup', (e) => {
+      this.keys[e.code] = false;
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      this.mouse.x = e.clientX;
+      this.mouse.y = e.clientY;
+      if (this.player) {
+        const screenPx = this.player.x - this.camera.x;
+        const screenPy = this.player.y - this.camera.y;
+        this.player.aimAngle = Math.atan2(this.mouse.y - screenPy, this.mouse.x - screenPx);
+      }
+    });
+
+    window.addEventListener('mousedown', (e) => {
+      if (e.button === 0) {
+        this.mouse.isDown = true;
+        if (this.state === 'PLAYING' && this.player) {
+          this.player.basicAttack(this.enemies);
+        }
+      }
+    });
+
+    window.addEventListener('mouseup', () => {
+      this.mouse.isDown = false;
+    });
+
+    // Mobile Touch Joystick
+    const joyZone = document.getElementById('touch-joystick-zone');
+    const joyThumb = document.getElementById('joystick-thumb');
+
+    if (joyZone) {
+      joyZone.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        const touch = e.touches[0];
+        const rect = joyZone.getBoundingClientRect();
+        this.touchJoystick.active = true;
+        this.touchJoystick.startX = rect.left + rect.width / 2;
+        this.touchJoystick.startY = rect.top + rect.height / 2;
+        this.updateJoystick(touch.clientX, touch.clientY, joyThumb);
+      });
+
+      joyZone.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        if (this.touchJoystick.active) {
+          const touch = e.touches[0];
+          this.updateJoystick(touch.clientX, touch.clientY, joyThumb);
+        }
+      });
+
+      const resetJoy = () => {
+        this.touchJoystick.active = false;
+        this.touchJoystick.dx = 0;
+        this.touchJoystick.dy = 0;
+        if (joyThumb) joyThumb.style.transform = 'translate(-50%, -50%)';
+      };
+
+      joyZone.addEventListener('touchend', resetJoy);
+      joyZone.addEventListener('touchcancel', resetJoy);
+    }
+
+    // Touch Action Buttons
+    const bindTouch = (id, action) => {
+      const btn = document.getElementById(id);
+      if (btn) {
+        btn.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          action();
+        });
+      }
+    };
+
+    bindTouch('tbtn-atk', () => { if (this.player) this.player.basicAttack(this.enemies); });
+    bindTouch('tbtn-dash', () => { if (this.player) this.player.dash(this.touchJoystick.dx, this.touchJoystick.dy); });
+    bindTouch('tbtn-sk1', () => { if (this.player) this.player.castSkill1(this.projectiles); });
+    bindTouch('tbtn-sk2', () => { if (this.player) this.player.castSkill2(this.projectiles); });
+    bindTouch('tbtn-ult', () => { if (this.player) this.player.castUlt(this.projectiles); });
+  }
+
+  updateJoystick(cx, cy, thumb) {
+    const rawDx = cx - this.touchJoystick.startX;
+    const rawDy = cy - this.touchJoystick.startY;
+    const dist = Math.hypot(rawDx, rawDy);
+    const maxR = 45;
+    const clampedDist = Math.min(maxR, dist);
+    const angle = Math.atan2(rawDy, rawDx);
+
+    const fx = Math.cos(angle) * clampedDist;
+    const fy = Math.sin(angle) * clampedDist;
+
+    thumb.style.transform = `translate(calc(-50% + ${fx}px), calc(-50% + ${fy}px))`;
+
+    this.touchJoystick.dx = fx / maxR;
+    this.touchJoystick.dy = fy / maxR;
+
+    if (this.player && dist > 10) {
+      this.player.aimAngle = angle;
+    }
+  }
+
+  setupUI() {
+    // Class Card Selection
+    document.querySelectorAll('.class-card').forEach(card => {
+      card.addEventListener('click', () => {
+        document.querySelectorAll('.class-card').forEach(c => {
+          c.classList.remove('selected');
+          c.querySelector('.btn-select-hero').innerText = '선택하기';
+        });
+        card.classList.add('selected');
+        card.querySelector('.btn-select-hero').innerText = '선택 완료';
+        this.selectedClass = card.dataset.class;
+        window.abyssAudio.playSFX('slash');
+      });
+    });
+
+    // Start Run Button
+    document.getElementById('btn-start-run').addEventListener('click', () => {
+      this.startRun();
+    });
+
+    // Sanctuary Open/Close
+    document.getElementById('btn-open-sanctuary').addEventListener('click', () => {
+      this.openSanctuary();
+    });
+    document.getElementById('btn-close-sanctuary').addEventListener('click', () => {
+      document.getElementById('modal-sanctuary').classList.add('hidden');
+    });
+    document.getElementById('btn-sanctuary-done').addEventListener('click', () => {
+      document.getElementById('modal-sanctuary').classList.add('hidden');
+    });
+
+    // Reroll Boon
+    document.getElementById('btn-reroll-boon').addEventListener('click', () => {
+      if (this.rerollCount > 0) {
+        this.rerollCount--;
+        document.getElementById('reroll-count').innerText = this.rerollCount;
+        this.presentBoons();
+      }
+    });
+
+    // Return to Hub from End Screen
+    document.getElementById('btn-return-hub').addEventListener('click', () => {
+      document.getElementById('modal-end').classList.add('hidden');
+      document.getElementById('modal-title').classList.remove('hidden');
+      document.getElementById('modal-title').classList.add('active');
+      this.state = 'TITLE';
+      window.abyssAudio.stopBGM();
+    });
+
+    // Close Shop
+    document.getElementById('btn-close-shop').addEventListener('click', () => {
+      document.getElementById('modal-shop').classList.add('hidden');
+      this.state = 'PLAYING';
+    });
+  }
+
+  startRun() {
+    const classData = HERO_CLASSES[this.selectedClass];
+    this.player = new Player(classData, this.talents);
+    this.dungeon = new DungeonFloor(1);
+    this.enemies = [];
+    this.projectiles = [];
+    this.runStartTime = Date.now();
+    this.rerollCount = 1;
+
+    document.getElementById('modal-title').classList.remove('active');
+    document.getElementById('modal-title').classList.add('hidden');
+    document.getElementById('hud-class-icon').innerText = this.player.icon;
+
+    this.state = 'PLAYING';
+    window.abyssAudio.startDungeonBGM();
+    this.showToast(`🔥 ${this.player.name}의 심연 토벌이 시작되었습니다!`);
+    this.updateHUD();
+  }
+
+  openSanctuary() {
+    document.getElementById('modal-sanctuary').classList.remove('hidden');
+    document.getElementById('sanctuary-soul-val').innerText = this.bankedSouls;
+
+    const container = document.getElementById('sanctuary-talents-container');
+    container.innerHTML = '';
+
+    SANCTUARY_TALENTS.forEach(t => {
+      const curLvl = this.talents[t.id] || 0;
+      const cost = t.costPerLvl * (curLvl + 1);
+      const isMax = curLvl >= t.maxLevel;
+
+      const card = document.createElement('div');
+      card.className = 'talent-card';
+      card.style.background = '#1e293b';
+      card.style.border = '1px solid var(--border-gold)';
+      card.style.borderRadius = '10px';
+      card.style.padding = '12px';
+      card.style.display = 'flex';
+      card.style.justifyContent = 'space-between';
+      card.style.alignItems = 'center';
+      card.style.margin = '8px 0';
+
+      card.innerHTML = `
+        <div>
+          <div style="font-weight:900; font-size:15px; color:#fff;">${t.icon} ${t.name} (Lv.${curLvl}/${t.maxLevel})</div>
+          <div style="font-size:12px; color:#94a3b8;">${t.desc}</div>
+        </div>
+        <button class="btn-upgrade-talent" style="padding:8px 16px; background:${isMax ? '#475569' : '#e11d48'}; border:none; border-radius:6px; color:#fff; font-weight:800; cursor:${isMax ? 'default' : 'pointer'};">
+          ${isMax ? 'MAX' : `${cost} 💜 강화`}
+        </button>
+      `;
+
+      if (!isMax) {
+        card.querySelector('button').onclick = () => {
+          if (this.bankedSouls >= cost) {
+            this.bankedSouls -= cost;
+            this.talents[t.id] = curLvl + 1;
+            this.saveGame();
+            window.abyssAudio.playSFX('boon_pickup');
+            this.openSanctuary();
+          } else {
+            this.showToast('영혼 정수가 부족합니다!');
+          }
+        };
+      }
+
+      container.appendChild(card);
+    });
+  }
+
+  presentBoons() {
+    this.state = 'BOON_PICK';
+    const modal = document.getElementById('modal-boon');
+    modal.classList.remove('hidden');
+
+    const randomGod = GOD_DOMAINS[Math.floor(Math.random() * GOD_DOMAINS.length)];
+    document.getElementById('boon-god-icon').innerText = randomGod.icon;
+    document.getElementById('boon-god-name').innerText = randomGod.name;
+    document.getElementById('boon-god-quote').innerText = `"${randomGod.quote}"`;
+
+    const container = document.getElementById('boon-cards-container');
+    container.innerHTML = '';
+
+    // Pick 3 random boons
+    const available = GODLY_BOONS.filter(b => !this.player.boons.some(pb => pb.id === b.id));
+    const shuffled = available.sort(() => 0.5 - Math.random()).slice(0, 3);
+
+    shuffled.forEach(b => {
+      const card = document.createElement('div');
+      card.className = 'boon-card';
+      card.innerHTML = `
+        <span class="boon-card-rarity rarity-${b.rarity}">${b.rarity.toUpperCase()}</span>
+        <div class="boon-card-title">${b.name}</div>
+        <div class="boon-card-desc">${b.desc}</div>
+      `;
+
+      card.onclick = () => {
+        b.apply(this.player);
+        this.player.boons.push(b);
+        modal.classList.add('hidden');
+        this.state = 'PLAYING';
+        window.abyssAudio.playSFX('boon_pickup');
+        this.addBoonBadge(b);
+        this.showToast(`✨ ${b.name} 축복을 획득하였습니다!`);
+      };
+
+      container.appendChild(card);
+    });
+  }
+
+  addBoonBadge(b) {
+    const dock = document.getElementById('boon-dock');
+    const badge = document.createElement('div');
+    badge.className = 'boon-badge';
+    badge.innerHTML = `<span>⚡</span><strong>${b.name}</strong>`;
+    dock.appendChild(badge);
+  }
+
+  openShop() {
+    this.state = 'SHOP';
+    const modal = document.getElementById('modal-shop');
+    modal.classList.remove('hidden');
+    document.getElementById('shop-gold-val').innerText = this.player.gold;
+
+    const container = document.getElementById('shop-items-container');
+    container.innerHTML = '';
+
+    MERCHANT_ITEMS.forEach(item => {
+      const card = document.createElement('div');
+      card.style.background = '#1e293b';
+      card.style.border = '1px solid var(--border-gold)';
+      card.style.borderRadius = '10px';
+      card.style.padding = '12px';
+      card.style.display = 'flex';
+      card.style.justifyContent = 'space-between';
+      card.style.alignItems = 'center';
+      card.style.margin = '8px 0';
+
+      card.innerHTML = `
+        <div>
+          <div style="font-weight:900; font-size:15px; color:#fff;">${item.icon} ${item.name}</div>
+          <div style="font-size:12px; color:#94a3b8;">${item.desc}</div>
+        </div>
+        <button style="padding:8px 16px; background:#eab308; border:none; border-radius:6px; color:#000; font-weight:900; cursor:pointer;">
+          ${item.cost} 💰 구매
+        </button>
+      `;
+
+      card.querySelector('button').onclick = () => {
+        if (this.player.gold >= item.cost) {
+          this.player.gold -= item.cost;
+          if (item.type === 'heal') this.player.hp = Math.min(this.player.maxHp, this.player.hp + item.val);
+          if (item.type === 'max_hp') { this.player.maxHp += item.val; this.player.hp = this.player.maxHp; }
+          if (item.type === 'atk') this.player.baseAtk += item.val;
+          if (item.type === 'speed') this.player.speed *= (1 + item.val);
+
+          window.abyssAudio.playSFX('coin');
+          this.showToast(`${item.name} 구매 완료!`);
+          this.openShop();
+          this.updateHUD();
+        } else {
+          this.showToast('골드가 부족합니다!');
+        }
+      };
+
+      container.appendChild(card);
+    });
+  }
+
+  spawnEnemiesForRoom(room) {
+    if (room.enemiesSpawned || room.cleared) return;
+    room.enemiesSpawned = true;
+    this.enemies = [];
+
+    if (room.type === 'combat') {
+      for (let i = 0; i < 5; i++) {
+        this.enemies.push(new Enemy('void_skulker', Math.random() * 800 + 200, Math.random() * 500 + 150));
+      }
+      for (let i = 0; i < 2; i++) {
+        this.enemies.push(new Enemy('skeleton_archer', Math.random() * 800 + 200, Math.random() * 500 + 150));
+      }
+    } else if (room.type === 'elite') {
+      this.enemies.push(new Enemy('minotaur_elite', room.width / 2, room.height / 2));
+      for (let i = 0; i < 3; i++) {
+        this.enemies.push(new Enemy('void_skulker', Math.random() * 800 + 200, Math.random() * 500 + 150));
+      }
+    } else if (room.type === 'boss') {
+      const boss = new AbaddonBoss(room.width / 2, room.height / 2);
+      this.enemies.push(boss);
+      document.getElementById('boss-hud').classList.remove('hidden');
+      window.abyssAudio.startBossBGM();
+    }
+  }
+
+  dealAreaDamage(x, y, radius, damage, type) {
+    this.enemies.forEach(e => {
+      const dist = Math.hypot(e.x - x, e.y - y);
+      if (dist < radius + e.radius) {
+        const isCrit = Math.random() < this.player.critRate;
+        e.takeDamage(damage * (isCrit ? this.player.critMult : 1.0), isCrit, this.player);
+      }
+    });
+  }
+
+  triggerChainLightning(source, enemies, chainsLeft, damage) {
+    if (chainsLeft <= 0) return;
+    const candidates = enemies.filter(e => e !== source && e.hp > 0);
+    if (candidates.length === 0) return;
+
+    candidates.sort((a, b) => Math.hypot(a.x - source.x, a.y - source.y) - Math.hypot(b.x - source.x, b.y - source.y));
+    const target = candidates[0];
+
+    window.abyssParticles.addLightning(source.x, source.y, target.x, target.y);
+    target.takeDamage(damage, false, this.player);
+
+    setTimeout(() => {
+      this.triggerChainLightning(target, enemies, chainsLeft - 1, damage);
+    }, 80);
+  }
+
+  showToast(msg) {
+    const toast = document.getElementById('game-toast');
+    toast.innerText = msg;
+    toast.classList.remove('hidden');
+    setTimeout(() => toast.classList.add('hidden'), 2400);
   }
 
   updateHUD() {
-    document.getElementById('hud-gold').innerText = this.gold.toLocaleString() + ' G';
-    document.getElementById('hud-season').innerText = this.seasons[this.seasonIdx];
-    document.getElementById('hud-day').innerText = this.day + '일 (' + this.dayNames[(this.day - 1) % 7] + ')';
-    document.getElementById('hud-stamina-fill').style.width = ((this.player.stamina / this.player.maxStamina) * 100) + '%';
-    document.getElementById('hud-stamina-val').innerText = Math.round(this.player.stamina) + '/' + this.player.maxStamina;
-    document.getElementById('hud-zone-name').innerText = this.map.getCurZone().name;
+    if (!this.player) return;
+    document.getElementById('hud-player-level').innerText = `Lv.${this.player.level}`;
+    document.getElementById('hud-hp-fill').style.width = `${Math.max(0, (this.player.hp / this.player.maxHp) * 100)}%`;
+    document.getElementById('hud-hp-text').innerText = `${Math.round(this.player.hp)} / ${this.player.maxHp}`;
+    document.getElementById('hud-mp-fill').style.width = `${Math.max(0, (this.player.mp / this.player.maxMp) * 100)}%`;
+    document.getElementById('hud-mp-text').innerText = `${Math.round(this.player.mp)} / ${this.player.maxMp}`;
+    document.getElementById('hud-exp-fill').style.width = `${(this.player.exp / this.player.expNext) * 100}%`;
+    document.getElementById('hud-gold').innerText = this.player.gold;
+    document.getElementById('hud-souls').innerText = this.player.souls;
+    document.getElementById('hud-floor').innerText = `1F - ${this.dungeon.currentRoom.name}`;
 
-    const h = Math.floor(this.timeMinutes / 60);
-    const m = Math.floor(this.timeMinutes % 60);
-    const ampm = h >= 12 ? 'PM' : 'AM';
-    const dh = h % 12 === 0 ? 12 : h % 12;
-    document.getElementById('hud-clock').innerText = ampm + ' ' + (dh < 10 ? '0' : '') + dh + ':' + (m < 10 ? '0' : '') + m;
+    // Cooldown sweeps
+    document.getElementById('cd-dash').style.height = `${(this.player.dashCdTimer / this.player.dashCd) * 100}%`;
+    document.getElementById('dash-charges').innerText = '⚡'.repeat(this.player.dashes);
 
-    const curTool = this.tools[this.equippedToolIdx];
-    if (this.player.heldItem) {
-      document.getElementById('hud-tool-icon').innerText = this.player.heldItem.icon;
-      document.getElementById('hud-tool-name').innerText = this.player.heldItem.name;
-      document.getElementById('hud-tool-sub').innerText = '출하 상자에 던져 넣으세요 [A]';
-    } else if (curTool) {
-      document.getElementById('hud-tool-icon').innerText = curTool.icon;
-      document.getElementById('hud-tool-name').innerText = curTool.name + (curTool.level ? ' Lv.' + curTool.level : '');
-      document.getElementById('hud-tool-sub').innerText = curTool.sub;
-    }
+    document.getElementById('cd-skill1').style.height = `${(this.player.cdSkill1 / this.player.skills.skill1.cd) * 100}%`;
+    document.getElementById('cd-skill2').style.height = `${(this.player.cdSkill2 / this.player.skills.skill2.cd) * 100}%`;
+    document.getElementById('cd-ult').style.height = `${(this.player.cdUlt / this.player.skills.ult.cd) * 100}%`;
 
-    const filter = document.getElementById('weather-filter');
-    if (h >= 17 && h < 20) {
-      filter.style.backgroundColor = 'rgba(234, 88, 12, 0.2)';
-    } else if (h >= 20 || h < 6) {
-      filter.style.backgroundColor = 'rgba(15, 23, 42, 0.55)';
-    } else {
-      filter.style.backgroundColor = 'rgba(0, 0, 0, 0)';
+    // Boss Bar
+    const boss = this.enemies.find(e => e.isBoss);
+    if (boss) {
+      document.getElementById('boss-hp-fill').style.width = `${Math.max(0, (boss.hp / boss.maxHp) * 100)}%`;
     }
   }
 
+  checkDoorWarps() {
+    if (!this.dungeon.currentRoom.cleared) return;
+    const p = this.player;
+    const room = this.dungeon.currentRoom;
+
+    if (p.y < 35 && room.doors.includes('north')) this.enterNextRoom('north');
+    else if (p.y > room.height - 35 && room.doors.includes('south')) this.enterNextRoom('south');
+    else if (p.x < 35 && room.doors.includes('west')) this.enterNextRoom('west');
+    else if (p.x > room.width - 35 && room.doors.includes('east')) this.enterNextRoom('east');
+  }
+
+  enterNextRoom(dir) {
+    const next = this.dungeon.changeRoom(dir, this.player);
+    if (next) {
+      this.projectiles = [];
+      this.spawnEnemiesForRoom(next);
+      this.showToast(`📍 ${next.name} 진입`);
+      if (next.type === 'shop') this.openShop();
+    }
+  }
+
+  endRun(isVictory) {
+    this.state = 'END';
+    this.bankedSouls += this.player.souls;
+    this.saveGame();
+
+    document.getElementById('modal-end').classList.remove('hidden');
+    document.getElementById('end-title').innerText = isVictory ? 'VICTORY' : 'DEFEAT';
+    document.getElementById('end-title').style.color = isVictory ? '#fbbf24' : '#e11d48';
+    document.getElementById('end-subtitle').innerText = isVictory
+      ? '심연의 대군주를 토벌하고 몰락자의 승천을 이루어냈습니다!'
+      : '심연의 어둠이 영혼을 집어삼켰습니다.';
+
+    document.getElementById('end-floor').innerText = `1F - ${this.dungeon.currentRoom.name}`;
+    document.getElementById('end-kills').innerText = `${this.player.kills} 마리`;
+    document.getElementById('end-damage').innerText = `${this.player.totalDamageDealt.toLocaleString()}`;
+    document.getElementById('end-souls').innerText = `+${this.player.souls} 💜`;
+
+    const sec = Math.floor((Date.now() - this.runStartTime) / 1000);
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    document.getElementById('end-time').innerText = `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
+
+    document.getElementById('boss-hud').classList.add('hidden');
+  }
+
   startLoop() {
-    const loop = () => {
-      this.update();
+    let lastTime = performance.now();
+    const loop = (now) => {
+      const dt = Math.min(0.1, (now - lastTime) / 1000);
+      lastTime = now;
+
+      this.update(dt);
       this.render();
       requestAnimationFrame(loop);
     };
     requestAnimationFrame(loop);
   }
 
-  update() {
-    this.timeMinutes += 0.05;
-    if (this.timeMinutes >= 1020 && !this.zackShippedToday) {
-      this.zackShippedToday = true;
-      window.hmAudio.playSFX('coin');
-      this.showToast('🤠 잭(Zack)이 출하 상자의 농산물을 회수해 갔습니다!');
-    }
-    if (this.timeMinutes >= 1440) {
-      this.advanceDay();
-    }
-    this.updateHUD();
+  update(dt) {
+    if (this.state !== 'PLAYING') return;
 
-    if (this.map.currentZone === 'farm') {
-      const curTx = Math.floor(this.player.x / this.map.getCurZone().tileSize);
-      const curTy = Math.floor(this.player.y / this.map.getCurZone().tileSize);
-      if (this.map.getTile(curTx, curTy) === TILE_HOTSPRING) {
-        this.player.stamina = Math.min(this.player.maxStamina, this.player.stamina + 0.4);
+    let moveX = this.touchJoystick.dx;
+    let moveY = this.touchJoystick.dy;
+
+    if (this.keys['KeyW'] || this.keys['ArrowUp']) moveY -= 1;
+    if (this.keys['KeyS'] || this.keys['ArrowDown']) moveY += 1;
+    if (this.keys['KeyA'] || this.keys['ArrowLeft']) moveX -= 1;
+    if (this.keys['KeyD'] || this.keys['ArrowRight']) moveX += 1;
+
+    this.player.update(dt, moveX, moveY, this.dungeon.currentRoom);
+    this.checkDoorWarps();
+
+    // Auto spawn enemies if room is active
+    this.spawnEnemiesForRoom(this.dungeon.currentRoom);
+
+    // Update Enemies
+    for (let i = this.enemies.length - 1; i >= 0; i--) {
+      const e = this.enemies[i];
+      e.update(dt, this.player, this.projectiles);
+      if (e.hp <= 0) {
+        if (e.isBoss) this.endRun(true);
+        this.enemies.splice(i, 1);
       }
     }
 
-    if (this.player.isCharging) {
-      this.player.chargeTimer += 0.016;
-    }
+    // Update Projectiles
+    for (let i = this.projectiles.length - 1; i >= 0; i--) {
+      const p = this.projectiles[i];
+      p.update(dt);
 
-    if (this.dialogActive) return;
+      if (p.life <= 0) {
+        this.projectiles.splice(i, 1);
+        continue;
+      }
 
-    let dx = 0, dy = 0;
-    if (this.keys['KeyW'] || this.keys['ArrowUp'] || this.keys['dpad_up']) { dy -= 1; this.player.dir = 'up'; }
-    if (this.keys['KeyS'] || this.keys['ArrowDown'] || this.keys['dpad_down']) { dy += 1; this.player.dir = 'down'; }
-    if (this.keys['KeyA'] || this.keys['ArrowLeft'] || this.keys['dpad_left']) { dx -= 1; this.player.dir = 'left'; }
-    if (this.keys['KeyD'] || this.keys['ArrowRight'] || this.keys['dpad_right']) { dx += 1; this.player.dir = 'right'; }
-
-    const len = Math.hypot(dx, dy);
-    if (len > 0) {
-      this.player.isMoving = true;
-      this.player.walkFrame += 0.04;
-      this.player.x += (dx / len) * this.player.speed;
-      this.player.y += (dy / len) * this.player.speed;
-
-      const zone = this.map.getCurZone();
-      this.player.x = Math.max(16, Math.min(zone.cols * zone.tileSize - 32, this.player.x));
-      this.player.y = Math.max(16, Math.min(zone.rows * zone.tileSize - 32, this.player.y));
-    } else {
-      this.player.isMoving = false;
-    }
-
-    this.camera.x = Math.round(this.player.x - this.canvas.width / 2);
-    this.camera.y = Math.round(this.player.y - this.canvas.height / 2);
-  }
-
-  render() {
-    const { ctx, canvas, camera, map } = this;
-    const zone = map.getCurZone();
-    const ts = zone.tileSize;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    for (let y = 0; y < zone.rows; y++) {
-      for (let x = 0; x < zone.cols; x++) {
-        const tile = zone.grid[y][x];
-        const sx = x * ts - camera.x;
-        const sy = y * ts - camera.y;
-
-        if (tile === TILE_GRASS) {
-          ctx.fillStyle = (x + y) % 2 === 0 ? '#4ade80' : '#22c55e';
-          ctx.fillRect(sx, sy, ts, ts);
-        } else if (tile === TILE_DIRT_PATH) {
-          ctx.fillStyle = '#fde68a';
-          ctx.fillRect(sx, sy, ts, ts);
-        } else if (tile === TILE_SOIL_DRY) {
-          ctx.fillStyle = '#b45309';
-          ctx.fillRect(sx + 1, sy + 1, ts - 2, ts - 2);
-        } else if (tile === TILE_SOIL_WATERED) {
-          ctx.fillStyle = '#78350f';
-          ctx.fillRect(sx + 1, sy + 1, ts - 2, ts - 2);
-        } else if (tile === TILE_WATER) {
-          ctx.fillStyle = '#38bdf8';
-          ctx.fillRect(sx, sy, ts, ts);
-        } else if (tile === TILE_HOTSPRING) {
-          ctx.fillStyle = '#67e8f9';
-          ctx.fillRect(sx, sy, ts, ts);
-          ctx.fillStyle = 'rgba(255,255,255,0.7)';
-          ctx.fillText('♨️', sx + 6, sy + 22);
-        } else if (tile === TILE_SHIPPING_BIN) {
-          ctx.fillStyle = '#854d0e';
-          ctx.fillRect(sx + 2, sy + 4, ts - 4, ts - 6);
-          ctx.fillStyle = '#fff';
-          ctx.font = 'bold 9px sans-serif';
-          ctx.fillText('출하', sx + 6, sy + 20);
-        } else if (tile === TILE_WELL) {
-          ctx.fillStyle = '#64748b';
-          ctx.fillRect(sx + 4, sy + 4, ts - 8, ts - 8);
-          ctx.fillStyle = '#38bdf8';
-          ctx.beginPath();
-          ctx.arc(sx + ts/2, sy + ts/2, 6, 0, Math.PI * 2);
-          ctx.fill();
-        } else if (tile === TILE_HOUSE_ROOF) {
-          ctx.fillStyle = '#dc2626';
-          ctx.fillRect(sx, sy, ts, ts);
-        } else if (tile === TILE_HOUSE_WALL) {
-          ctx.fillStyle = '#fef3c7';
-          ctx.fillRect(sx, sy, ts, ts);
-        } else if (tile === TILE_HOUSE_DOOR || tile === TILE_COOP_DOOR || tile === TILE_BARN_DOOR || tile === TILE_EXIT_DOOR) {
-          ctx.fillStyle = '#78350f';
-          ctx.fillRect(sx + 6, sy + 4, ts - 12, ts - 4);
-        } else if (tile === TILE_WOOD_FLOOR) {
-          ctx.fillStyle = '#fcd34d';
-          ctx.fillRect(sx, sy, ts, ts);
-          ctx.strokeStyle = '#d97706';
-          ctx.strokeRect(sx, sy, ts, ts);
-        } else if (tile === TILE_BED) {
-          ctx.fillStyle = '#f43f5e';
-          ctx.fillRect(sx + 2, sy + 2, ts - 4, ts - 4);
-          ctx.font = '16px sans-serif';
-          ctx.fillText('🛏️', sx + 6, sy + 22);
-        } else if (tile === TILE_TV) {
-          ctx.fillStyle = '#1e293b';
-          ctx.fillRect(sx + 2, sy + 2, ts - 4, ts - 4);
-          ctx.font = '16px sans-serif';
-          ctx.fillText('📺', sx + 6, sy + 22);
-        } else if (tile === TILE_KITCHEN) {
-          ctx.fillStyle = '#cbd5e1';
-          ctx.fillRect(sx + 2, sy + 2, ts - 4, ts - 4);
-          ctx.font = '16px sans-serif';
-          ctx.fillText('🍳', sx + 6, sy + 22);
-        } else if (tile === TILE_MINE_ROCK) {
-          ctx.fillStyle = '#64748b';
-          ctx.fillRect(sx + 2, sy + 2, ts - 4, ts - 4);
-          ctx.font = '16px sans-serif';
-          ctx.fillText('🪨', sx + 6, sy + 22);
-        } else if (tile === TILE_MINE_LADDER) {
-          ctx.fillStyle = '#78350f';
-          ctx.fillRect(sx + 4, sy + 2, ts - 8, ts - 4);
-          ctx.font = '14px sans-serif';
-          ctx.fillText('🪜', sx + 6, sy + 22);
-        } else if (tile === TILE_SHOP_COUNTER) {
-          ctx.fillStyle = '#92400e';
-          ctx.fillRect(sx, sy, ts, ts);
-          ctx.font = '16px sans-serif';
-          ctx.fillText('🏪', sx + 6, sy + 22);
-        } else if (tile === TILE_BLACKSMITH_ANVIL) {
-          ctx.fillStyle = '#334155';
-          ctx.fillRect(sx, sy, ts, ts);
-          ctx.font = '16px sans-serif';
-          ctx.fillText('⚒️', sx + 6, sy + 22);
+      if (p.owner === 'player') {
+        this.enemies.forEach(e => {
+          if (Math.hypot(e.x - p.x, e.y - p.y) < e.radius + p.radius) {
+            e.takeDamage(p.damage, false, this.player);
+            if (p.explodes) {
+              window.abyssParticles.addShockwave(p.x, p.y, 80, '#f97316');
+              this.dealAreaDamage(p.x, p.y, 80, p.damage, 'fire');
+            }
+            if (!p.penetrates) p.life = 0;
+          }
+        });
+      } else if (p.owner === 'enemy') {
+        if (Math.hypot(this.player.x - p.x, this.player.y - p.y) < this.player.radius + p.radius) {
+          this.player.takeDamage(p.damage, 'projectile');
+          p.life = 0;
         }
       }
     }
 
-    if (map.currentZone === 'farm') {
-      for (const [key, crop] of Object.entries(map.crops)) {
-        const [tx, ty] = key.split(',').map(Number);
-        const sx = tx * ts - camera.x + ts / 2;
-        const sy = ty * ts - camera.y + ts / 2;
-        SpriteRenderer.drawCrop(ctx, sx, sy, crop);
-      }
-
-      map.animals.forEach(a => {
-        if (a.type === 'horse' && this.player.isRidingHorse) return;
-        SpriteRenderer.drawAnimal(ctx, a.x - camera.x, a.y - camera.y, a, this.player.walkFrame);
-      });
+    // Update Dungeon & Particles
+    const res = this.dungeon.update(dt, this.player, this.enemies);
+    if (res === 'ROOM_CLEARED') {
+      this.presentBoons();
     }
 
-    SpriteRenderer.drawPlayer(
-      ctx,
-      this.player.x - camera.x,
-      this.player.y - camera.y,
-      this.player.dir,
-      this.player.isMoving,
-      this.player.walkFrame,
-      this.player.heldItem,
-      this.player.isRidingHorse
-    );
+    window.abyssParticles.update(dt);
+
+    if (this.player.hp <= 0) {
+      this.endRun(false);
+    }
+
+    this.updateHUD();
+
+    // Camera follow player
+    const targetCamX = this.player.x - this.canvas.width / 2;
+    const targetCamY = this.player.y - this.canvas.height / 2;
+    this.camera.x += (targetCamX - this.camera.x) * 0.12;
+    this.camera.y += (targetCamY - this.camera.y) * 0.12;
+
+    // Apply Screen Shake
+    if (window.abyssParticles.screenShake > 0) {
+      this.camera.x += (Math.random() - 0.5) * window.abyssParticles.screenShake;
+      this.camera.y += (Math.random() - 0.5) * window.abyssParticles.screenShake;
+    }
+  }
+
+  render() {
+    const { ctx, canvas, camera, dungeon, player, enemies, projectiles } = this;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (this.state === 'PLAYING' || this.state === 'BOON_PICK' || this.state === 'SHOP') {
+      dungeon.render(ctx, camera);
+      window.abyssParticles.render(ctx, camera);
+
+      enemies.forEach(e => e.render(ctx, camera));
+      projectiles.forEach(p => p.render(ctx, camera));
+      player.render(ctx, camera);
+
+      dungeon.renderMinimap(this.minimapCanvas);
+    }
   }
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-  window.hmGame = new HarvestMoonGame();
+  new AbyssalGameEngine();
 });

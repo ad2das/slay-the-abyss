@@ -2,219 +2,288 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>HARVEST MOON: MINERAL MEADOW | 목장이야기 완전판</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Gaegu:wght@700&family=Press+Start+2P&family=Noto+Sans+KR:wght@700;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=5.0.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>ABYSSAL SLAYER: 몰락자의 승천 (Ascent of the Fallen)</title>
+  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Noto+Sans+KR:wght@400;700;900&family=MedievalSharp&display=swap" rel="stylesheet">
 </head>
 <body>
-  <div id="game-viewport">
-    
-    <!-- Retro 2.5D Multi-Zone Canvas -->
+  <div id="game-container">
     <canvas id="gameCanvas"></canvas>
 
-    <!-- Weather, Night & Rain Particles Overlay -->
-    <div id="weather-filter"></div>
-    <div id="rain-layer" class="hidden"></div>
-
-    <!-- ================= TOP HUD: TIME, CALENDAR, WEATHER, STAMINA, GOLD ================= -->
-    <div id="hm-top-hud">
-      <!-- Left: Calendar & Clock -->
-      <div class="hm-panel time-panel">
-        <div class="date-row">
-          <span class="weather-icon" id="hud-weather">☀️</span>
-          <span class="season-badge" id="hud-season">봄 (Spring)</span>
-          <span class="day-badge" id="hud-day">1일 (월)</span>
+    <!-- Top HUD -->
+    <div id="hud-top" class="hud-layer">
+      <div class="player-vital-box">
+        <div class="player-avatar-frame">
+          <div id="hud-class-icon" class="avatar-icon">🗡️</div>
+          <div id="hud-player-level">Lv.1</div>
         </div>
-        <div class="clock-row">
-          <span class="clock-icon">⏰</span>
-          <span id="hud-clock">AM 06:00</span>
-          <span class="location-tag" id="hud-zone-name">🏡 내 목장</span>
-        </div>
-      </div>
-
-      <!-- Right: Gold & Stamina -->
-      <div class="hm-panel stats-panel">
-        <div class="gold-row">
-          <span class="coin-icon">💰</span>
-          <span id="hud-gold">500 G</span>
-        </div>
-        <div class="stamina-row">
-          <span class="stamina-label">체력</span>
-          <div class="stamina-bar-bg">
-            <div id="hud-stamina-fill" class="stamina-bar-fill" style="width: 100%;"></div>
+        <div class="vital-bars">
+          <div class="bar-row hp-row">
+            <div class="bar-track hp-track">
+              <div id="hud-hp-fill" class="bar-fill hp-fill" style="width: 100%;"></div>
+              <div id="hud-hp-shield" class="bar-fill shield-fill" style="width: 0%;"></div>
+            </div>
+            <span id="hud-hp-text" class="bar-text">300 / 300</span>
           </div>
-          <span id="hud-stamina-val">100/100</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- ================= CURRENTLY HELD ITEM / TOOL POPUP ================= -->
-    <div id="held-item-hud" class="hm-panel">
-      <div class="held-icon" id="hud-tool-icon">🚜</div>
-      <div class="held-info">
-        <div class="held-name" id="hud-tool-name">호미 (Hoe) Lv.1</div>
-        <div class="held-sub" id="hud-tool-sub">밭을 일굽니다 [B 버튼] (길게 눌러 차지!)</div>
-      </div>
-    </div>
-
-    <!-- ================= DIALOG & NPC CONVERSATION BOX ================= -->
-    <div id="dialog-box" class="dialog-hidden">
-      <div class="dialog-frame">
-        <div class="dialog-portrait" id="dialog-portrait">👨‍🌾</div>
-        <div class="dialog-content">
-          <div class="dialog-speaker-row">
-            <span class="dialog-speaker" id="dialog-speaker">촌장 토마스</span>
-            <span class="npc-heart-display" id="dialog-hearts">❤️❤️❤️🤍🤍</span>
+          <div class="bar-row mp-row">
+            <div class="bar-track mp-track">
+              <div id="hud-mp-fill" class="bar-fill mp-fill" style="width: 100%;"></div>
+            </div>
+            <span id="hud-mp-text" class="bar-text">100 / 100</span>
           </div>
-          <div class="dialog-text" id="dialog-text">"목장 생활에 적응하고 있는가? 마을 사람들과도 인사를 나누어보게나!"</div>
-        </div>
-        <div class="dialog-next-arrow">▼</div>
-      </div>
-    </div>
-
-    <!-- ================= MODAL: KITCHEN COOKING STATION ================= -->
-    <div id="modal-kitchen" class="hm-modal hidden">
-      <div class="modal-card cooking-card">
-        <div class="modal-header">
-          <h2>🍳 주방 요리 스테이션 (Farm Kitchen)</h2>
-          <button class="btn-close-hm" data-modal="modal-kitchen">✕</button>
-        </div>
-        <p class="modal-subtext">수확한 작물과 우유, 달걀로 맛있는 음식을 요리하여 체력을 회복하세요!</p>
-        <div class="recipes-grid" id="recipes-container"></div>
-      </div>
-    </div>
-
-    <!-- ================= MODAL: BLACKSMITH TOOL UPGRADES ================= -->
-    <div id="modal-blacksmith" class="hm-modal hidden">
-      <div class="modal-card blacksmith-card">
-        <div class="modal-header">
-          <h2>⚒️ 사이바라 대장간 (Saibara's Blacksmith)</h2>
-          <button class="btn-close-hm" data-modal="modal-blacksmith">✕</button>
-        </div>
-        <p class="modal-subtext">광산에서 캔 광석과 골드로 도구를 강화하여 3x3 범위 작업을 하세요!</p>
-        <div class="upgrades-list" id="blacksmith-upgrades-container"></div>
-      </div>
-    </div>
-
-    <!-- ================= MODAL: TV & WEATHER FORECAST ================= -->
-    <div id="modal-tv" class="hm-modal hidden">
-      <div class="modal-card tv-card">
-        <div class="modal-header">
-          <h2>📺 앤틱 브라운관 TV (Mineral TV)</h2>
-          <button class="btn-close-hm" data-modal="modal-tv">✕</button>
-        </div>
-        <div class="tv-screen-box">
-          <div class="tv-channel-title">📡 [내일의 미네랄 날씨 뉴스]</div>
-          <div class="tv-content-text" id="tv-forecast-text">"내일은 하루 종일 맑은 햇살이 내리쬘 예정입니다. 농작물 관리에 좋은 날씨입니다!"</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ================= MODAL: PIERRE'S GENERAL STORE ================= -->
-    <div id="modal-shop" class="hm-modal hidden">
-      <div class="modal-card">
-        <div class="modal-header">
-          <h2>🏪 피에르 잡화점 (Pierre's Store)</h2>
-          <button class="btn-close-hm" data-modal="modal-shop">✕</button>
-        </div>
-        <div class="shop-tabs">
-          <button class="tab-btn active" data-tab="seeds">🌱 계절 씨앗</button>
-          <button class="tab-btn" data-tab="supplies">🌾 목장 사료 & 용품</button>
-        </div>
-        <div class="shop-items-list" id="shop-items-container"></div>
-      </div>
-    </div>
-
-    <!-- ================= MODAL: RUCKSACK INVENTORY ================= -->
-    <div id="modal-rucksack" class="hm-modal hidden">
-      <div class="modal-card">
-        <div class="modal-header">
-          <h2>🎒 배낭 (Rucksack)</h2>
-          <button class="btn-close-hm" data-modal="modal-rucksack">✕</button>
-        </div>
-        <div class="rucksack-grid" id="rucksack-container"></div>
-        <div class="rucksack-footer">
-          <span id="rucksack-item-desc">아이템을 선택해 머리 위로 들거나 먹으세요.</span>
-          <div class="rucksack-action-btns">
-            <button id="btn-eat-item" class="btn-hm-action" style="background:#e11d48;">먹기 (Eat)</button>
-            <button id="btn-equip-item" class="btn-hm-action">손에 들기 (Equip)</button>
+          <div class="bar-row exp-row">
+            <div class="bar-track exp-track">
+              <div id="hud-exp-fill" class="bar-fill exp-fill" style="width: 0%;"></div>
+            </div>
           </div>
         </div>
       </div>
+
+      <div class="run-stats-box">
+        <div class="stat-badge gold-badge">
+          <span class="badge-icon">💰</span>
+          <span id="hud-gold">0</span>
+        </div>
+        <div class="stat-badge soul-badge">
+          <span class="badge-icon">💜</span>
+          <span id="hud-souls">0</span>
+        </div>
+        <div class="stat-badge floor-badge">
+          <span class="badge-icon">🏰</span>
+          <span id="hud-floor">1F - 심연의 입구</span>
+        </div>
+      </div>
+
+      <div class="minimap-box">
+        <canvas id="minimapCanvas" width="120" height="120"></canvas>
+      </div>
     </div>
 
-    <!-- ================= DAILY 5:00 PM SHIPPING SETTLEMENT ================= -->
-    <div id="modal-shipping" class="hm-modal hidden">
-      <div class="modal-card shipping-card">
-        <div class="shipping-header">
-          <div class="zack-avatar">🤠</div>
+    <!-- Active Boons Banner -->
+    <div id="boon-dock" class="boon-dock-container"></div>
+
+    <!-- Boss Health Bar -->
+    <div id="boss-hud" class="boss-hud-container hidden">
+      <div class="boss-title-row">
+        <span id="boss-name" class="boss-name">공허의 대군주 - 아바돈</span>
+        <span id="boss-phase-badge" class="boss-phase">PHASE 1</span>
+      </div>
+      <div class="boss-bar-track">
+        <div id="boss-hp-fill" class="boss-bar-fill" style="width: 100%;"></div>
+      </div>
+    </div>
+
+    <!-- Screen Flash / Ambient Vignette -->
+    <div id="fx-vignette" class="fx-vignette"></div>
+    <div id="fx-flash" class="fx-flash"></div>
+
+    <!-- Bottom Skill Hotbar (Desktop & Controls) -->
+    <div id="hud-bottom" class="hud-layer">
+      <div class="skill-hotbar">
+        <div class="skill-slot" id="slot-attack" data-key="LMB / Z">
+          <div class="skill-icon">⚔️</div>
+          <div class="skill-key">A</div>
+          <div class="cooldown-overlay" id="cd-attack"></div>
+        </div>
+        <div class="skill-slot" id="slot-dash" data-key="Space / X">
+          <div class="skill-icon">💨</div>
+          <div class="skill-key">DASH</div>
+          <div class="skill-charges" id="dash-charges">⚡⚡</div>
+          <div class="cooldown-overlay" id="cd-dash"></div>
+        </div>
+        <div class="skill-slot" id="slot-skill1" data-key="Q / C">
+          <div class="skill-icon" id="icon-skill1">🌀</div>
+          <div class="skill-key">Q</div>
+          <div class="cooldown-overlay" id="cd-skill1"></div>
+        </div>
+        <div class="skill-slot" id="slot-skill2" data-key="E / V">
+          <div class="skill-icon" id="icon-skill2">⚡</div>
+          <div class="skill-key">E</div>
+          <div class="cooldown-overlay" id="cd-skill2"></div>
+        </div>
+        <div class="skill-slot" id="slot-ult" data-key="R / F">
+          <div class="skill-icon" id="icon-ult">🔥</div>
+          <div class="skill-key">R</div>
+          <div class="cooldown-overlay" id="cd-ult"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mobile Virtual Gamepad -->
+    <div id="mobile-touch-controls">
+      <div id="touch-joystick-zone">
+        <div id="joystick-base">
+          <div id="joystick-thumb"></div>
+        </div>
+      </div>
+      <div id="touch-actions-zone">
+        <button class="t-btn btn-dash" id="tbtn-dash">💨</button>
+        <button class="t-btn btn-atk" id="tbtn-atk">⚔️</button>
+        <button class="t-btn btn-sk1" id="tbtn-sk1">Q</button>
+        <button class="t-btn btn-sk2" id="tbtn-sk2">E</button>
+        <button class="t-btn btn-ult" id="tbtn-ult">R</button>
+      </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="game-toast" class="game-toast hidden"></div>
+
+    <!-- MODAL: Class Select & Title Screen -->
+    <div id="modal-title" class="abyss-modal active">
+      <div class="modal-backdrop"></div>
+      <div class="title-content">
+        <div class="title-glow"></div>
+        <h1 class="game-title">ABYSSAL SLAYER</h1>
+        <p class="game-subtitle">몰락자의 승천 • ASCENT OF THE FALLEN</p>
+
+        <div class="class-selection-container">
+          <h2 class="section-title">영웅의 운명을 선택하십시오</h2>
+          <div class="class-cards">
+            <!-- Shadow Blade -->
+            <div class="class-card selected" data-class="shadow_blade">
+              <div class="class-card-icon">🗡️</div>
+              <h3 class="class-title">섀도우 블레이드</h3>
+              <p class="class-role">민첩형 쾌속 암살자</p>
+              <div class="class-stats">
+                <div>공격속도 ★★★★★</div>
+                <div>치명타율 ★★★★☆</div>
+                <div>생존체력 ★★☆☆☆</div>
+              </div>
+              <ul class="class-features">
+                <li>• 3단 연속 그림자 베기 & 원거리 수리검</li>
+                <li>• 그림자 분신 소환 & 잔상 관통 대시</li>
+                <li>• 궁극기: [어비스 익스큐션] 시공 참격</li>
+              </ul>
+              <button class="btn-select-hero">선택 완료</button>
+            </div>
+
+            <!-- Arcane Pyromancer -->
+            <div class="class-card" data-class="pyromancer">
+              <div class="class-card-icon">🔮</div>
+              <h3 class="class-title">아케인 파이로</h3>
+              <p class="class-role">광역 화염 마도사</p>
+              <div class="class-stats">
+                <div>스킬위력 ★★★★★</div>
+                <div>공격범위 ★★★★★</div>
+                <div>생존체력 ★★☆☆☆</div>
+              </div>
+              <ul class="class-features">
+                <li>• 유도 마력탄 & 광역 화염 폭발구</li>
+                <li>• 서리 노바 빙결 & 연쇄 번개 방전</li>
+                <li>• 궁극기: [대재앙의 메테오 스트라이크]</li>
+              </ul>
+              <button class="btn-select-hero">선택하기</button>
+            </div>
+
+            <!-- Blood Berserker -->
+            <div class="class-card" data-class="berserker">
+              <div class="class-card-icon">🪓</div>
+              <h3 class="class-title">블러드 버서커</h3>
+              <p class="class-role">파괴형 흡혈 전사</p>
+              <div class="class-stats">
+                <div>근접타격 ★★★★★</div>
+                <div>생존체력 ★★★★★</div>
+                <div>공격속도 ★★☆☆☆</div>
+              </div>
+              <ul class="class-features">
+                <li>• 대검 회전 베기 & 지진 충격파</li>
+                <li>• 피의 광폭화 & 치명타 흡혈 회복</li>
+                <li>• 궁극기: [불멸의 아수라 맹공]</li>
+              </ul>
+              <button class="btn-select-hero">선택하기</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="title-action-bar">
+          <button id="btn-start-run" class="btn-abyss-primary glow-btn">심연 토벌 시작 (ENTER)</button>
+          <button id="btn-open-sanctuary" class="btn-abyss-secondary">안식처 영구 강화 (SANCTUARY)</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: Sanctuary Permanent Upgrades -->
+    <div id="modal-sanctuary" class="abyss-modal hidden">
+      <div class="modal-backdrop"></div>
+      <div class="modal-panel sanctuary-panel">
+        <div class="panel-header">
+          <h2>🏛️ 몰락한 자들의 안식처 (Sanctuary of the Fallen)</h2>
+          <div class="soul-bank">보유 영혼: <strong id="sanctuary-soul-val">0</strong> 💜</div>
+          <button class="btn-close-modal" id="btn-close-sanctuary">✕</button>
+        </div>
+        <p class="panel-desc">토벌 중 수확한 영혼 정수로 모든 영웅의 영구 능력을 개방하십시오.</p>
+        
+        <div class="talents-grid" id="sanctuary-talents-container"></div>
+
+        <div class="panel-footer">
+          <button class="btn-abyss-primary" id="btn-sanctuary-done">강화 완료 & 복귀</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: Hades-Style Boon Selection -->
+    <div id="modal-boon" class="abyss-modal hidden">
+      <div class="modal-backdrop"></div>
+      <div class="modal-panel boon-panel">
+        <div class="boon-god-header">
+          <div class="god-icon" id="boon-god-icon">⚡</div>
           <div>
-            <h2>📦 오후 5:00 잭의 출하 정산서</h2>
-            <p>"오늘도 수고 많았네! 신선한 농산물 대금을 지급하겠네."</p>
+            <h2 id="boon-god-name">천둥의 군주 - 제피로스</h2>
+            <p id="boon-god-quote">"심연의 악귀들에게 벼락의 심판을 내리거라."</p>
           </div>
         </div>
-        <div class="shipping-list" id="shipping-list-container"></div>
-        <div class="shipping-total-row">
-          <span>오늘의 총 수익:</span>
-          <strong class="gold-text" id="shipping-total-gold">+0 G</strong>
-        </div>
-        <button id="btn-close-shipping" class="btn-hm-primary">정산 완료</button>
-      </div>
-    </div>
+        
+        <div class="boon-cards-row" id="boon-cards-container"></div>
 
-    <!-- ================= MOBILE GBA / SWITCH TOUCH CONTROLLER ================= -->
-    <div id="mobile-gamepad">
-      <!-- D-Pad (Left Thumb) -->
-      <div id="dpad-container">
-        <button class="dpad-btn dpad-up" id="btn-dpad-up">▲</button>
-        <div class="dpad-mid-row">
-          <button class="dpad-btn dpad-left" id="btn-dpad-left">◀</button>
-          <div class="dpad-center"></div>
-          <button class="dpad-btn dpad-right" id="btn-dpad-right">▶</button>
-        </div>
-        <button class="dpad-btn dpad-down" id="btn-dpad-down">▼</button>
-      </div>
-
-      <!-- Action Buttons (Right Thumb) -->
-      <div id="actions-container">
-        <div class="action-btn-row">
-          <button class="btn-round btn-y" id="btn-act-y" title="도구 퀵 스왑">
-            <span class="btn-sub">도구</span>
-            <strong>Y</strong>
-          </button>
-          <button class="btn-round btn-x" id="btn-act-x" title="배낭 열기">
-            <span class="btn-sub">배낭</span>
-            <strong>X</strong>
-          </button>
-        </div>
-        <div class="action-btn-row">
-          <button class="btn-round btn-b" id="btn-act-b" title="도구 사용 (홀드 시 차지)">
-            <span class="btn-sub">도구/차지</span>
-            <strong>B</strong>
-          </button>
-          <button class="btn-round btn-a" id="btn-act-a" title="대화/줍기/출하/승마">
-            <span class="btn-sub">결정/줍기</span>
-            <strong>A</strong>
-          </button>
+        <div class="boon-footer">
+          <button id="btn-reroll-boon" class="btn-reroll">🎲 다시 뽑기 (남은 횟수: <span id="reroll-count">1</span>)</button>
         </div>
       </div>
     </div>
 
-    <!-- Toast Notification -->
-    <div id="hm-toast" class="toast-hidden">알림</div>
+    <!-- MODAL: Abyssal Merchant Shop -->
+    <div id="modal-shop" class="abyss-modal hidden">
+      <div class="modal-backdrop"></div>
+      <div class="modal-panel shop-panel">
+        <div class="panel-header">
+          <h2>⚖️ 심연의 방랑 상인 (Abyssal Trader)</h2>
+          <div class="gold-bank">보유 골드: <strong id="shop-gold-val">0</strong> 💰</div>
+          <button class="btn-close-modal" id="btn-close-shop">✕</button>
+        </div>
+        <p class="panel-desc">생존을 위한 비약과 고대 유물을 구매하십시오.</p>
+        <div class="shop-items-grid" id="shop-items-container"></div>
+      </div>
+    </div>
 
+    <!-- MODAL: Victory / Defeat Screen -->
+    <div id="modal-end" class="abyss-modal hidden">
+      <div class="modal-backdrop"></div>
+      <div class="modal-panel end-panel">
+        <h1 id="end-title" class="end-title">DEFEAT</h1>
+        <p id="end-subtitle" class="end-subtitle">심연의 어둠이 영혼을 집어삼켰습니다.</p>
+        
+        <div class="end-stats-box">
+          <div class="stat-line"><span>도달한 층수</span><strong id="end-floor">1F</strong></div>
+          <div class="stat-line"><span>처치한 마물</span><strong id="end-kills">0 마리</strong></div>
+          <div class="stat-line"><span>가한 총 피해량</span><strong id="end-damage">0</strong></div>
+          <div class="stat-line"><span>수확한 영혼 정수</span><strong id="end-souls">+0 💜</strong></div>
+          <div class="stat-line"><span>생존 시간</span><strong id="end-time">00:00</strong></div>
+        </div>
+
+        <div class="end-actions">
+          <button id="btn-return-hub" class="btn-abyss-primary glow-btn">안식처로 귀환하기</button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Game Scripts -->
-  <script src="js/audio.js?v=5.0.0"></script>
-  <script src="js/sprites.js?v=5.0.0"></script>
-  <script src="js/cooking.js?v=5.0.0"></script>
-  <script src="js/npcs.js?v=5.0.0"></script>
-  <script src="js/map.js?v=5.0.0"></script>
-  <script src="js/game.js?v=5.0.0"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/particles.js"></script>
+  <script src="js/dungeon.js"></script>
+  <script src="js/entities.js"></script>
+  <script src="js/game.js"></script>
 </body>
 </html>
